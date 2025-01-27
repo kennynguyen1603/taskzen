@@ -7,7 +7,7 @@ import { BentoCard, BentoGrid } from '@/components/ui/bento-grid'
 import { AnimatedListDemo } from '@/containers/landingpage/animated-list-demo'
 import { IconBrandDatabricks, IconBrandTelegram, IconHelpOctagon, IconMessage } from '@tabler/icons-react'
 
-const text = 'What is NOLIMIT? What is NOLIMIT? What is NOLIMIT?'
+const text = 'What is TASKZEN? What is TASKZEN? What is TASKZEN?'
 const numberOfLines = 6
 
 const files = [
@@ -69,7 +69,7 @@ const features = [
   },
   {
     Icon: IconHelpOctagon,
-    name: 'What is NOLIMIT?',
+    name: 'What is TASKZEN?',
     description: "The resource management platform to plan your team's best work ",
     href: '#',
     cta: 'Learn more',
@@ -138,10 +138,12 @@ const features = [
 
 export function Features() {
   return (
-    <BentoGrid className='px-2  lg:px-[5rem] xl:px-[10rem] py-8 lg:py-16 '>
-      {features.map((feature, idx) => (
-        <BentoCard key={idx} {...feature} />
-      ))}
-    </BentoGrid>
+    <section id='features'>
+      <BentoGrid className='px-2  lg:px-[5rem] xl:px-[10rem] py-8 lg:py-16 '>
+        {features.map((feature, idx) => (
+          <BentoCard key={idx} {...feature} />
+        ))}
+      </BentoGrid>
+    </section>
   )
 }
