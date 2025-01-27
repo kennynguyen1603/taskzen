@@ -1,8 +1,8 @@
-import type { Config } from "tailwindcss";
-import { fontFamily } from 'tailwindcss/defaultTheme';
-import flattenColorPalette from 'tailwindcss/lib/util/flattenColorPalette';
+import type { Config } from 'tailwindcss'
+const { fontFamily } = require('tailwindcss/defaultTheme')
+const { default: flattenColorPalette } = require('tailwindcss/lib/util/flattenColorPalette')
 
-function addVariablesForColors({ addBase, theme }: { addBase: (arg: object) => void, theme: (path: string) => any }) {
+function addVariablesForColors({ addBase, theme }: any) {
 	let allColors = flattenColorPalette(theme('colors'))
 	let newVars = Object.fromEntries(Object.entries(allColors).map(([key, val]) => [`--${key}`, val]))
 
@@ -11,20 +11,19 @@ function addVariablesForColors({ addBase, theme }: { addBase: (arg: object) => v
 	})
 }
 
-export default {
-	darkMode: ["class"],
+const config: Config = {
+	darkMode: ['class'],
 	content: [
-		"./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-		"./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-		"./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+		'./public/**/*.{js,ts,jsx,tsx,mdx}',
+		'./src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+		'./src/components/**/*.{js,ts,jsx,tsx,mdx}',
+		'./src/app/**/*.{js,ts,jsx,tsx,mdx}',
+		'./src/containers/**/*.{js,ts,jsx,tsx,mdx}'
 	],
 	theme: {
 		extend: {
 			fontFamily: {
-				sans: [
-					'Inter var',
-					...fontFamily.sans
-				]
+				sans: ['var(--font-sans)', ...fontFamily.sans]
 			},
 			colors: {
 				taskzen: {
@@ -127,52 +126,57 @@ export default {
 					}
 				},
 				'infinite-scroll': {
-					from: {
-						transform: 'translateX(0)'
-					},
-					to: {
-						transform: 'translateX(-100%)'
-					}
+					from: { transform: 'translateX(0)' },
+					to: { transform: 'translateX(-100%)' }
 				},
 				marquee: {
-					from: {
-						transform: 'translateX(0)'
-					},
-					to: {
-						transform: 'translateX(calc(-100% - var(--gap)))'
-					}
+					from: { transform: 'translateX(0)' },
+					to: { transform: 'translateX(calc(-100% - var(--gap)))' }
 				},
 				'marquee-vertical': {
-					from: {
-						transform: 'translateY(0)'
-					},
-					to: {
-						transform: 'translateY(calc(-100% - var(--gap)))'
-					}
-				},
-				pulse: {
-					'0%, 100%': {
-						boxShadow: '0 0 0 0 var(--pulse-color)'
-					},
-					'50%': {
-						boxShadow: '0 0 0 8px var(--pulse-color)'
-					}
+					from: { transform: 'translateY(0)' },
+					to: { transform: 'translateY(calc(-100% - var(--gap)))' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'infinite-scroll': 'infinite-scroll 50s linear infinite',
-				marquee: 'marquee var(--duration) infinite linear',
-				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
-				pulse: 'pulse var(--duration) ease-out infinite'
+				marquee: 'marquee var(--duration) linear infinite',
+				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite'
 			}
 		}
 	},
 	plugins: [
 		require('tailwindcss-animate'),
-		function ({ addBase, theme }) {
-			addVariablesForColors({ addBase, theme });
-		}
-	],
-} satisfies Config;
+		function ({ addUtilities }: { addUtilities: (utilities: Record<string, any>, variants?: string[]) => void }) {
+			const scrollbarUtilities = {
+				'.scrollbar-default': {
+					'&::-webkit-scrollbar': {
+						width: '0.3rem'
+					},
+					'&::-webkit-scrollbar-track': {
+						// borderRadius: '9999px',
+						backgroundColor: '#f3f4f6'
+					},
+					'&::-webkit-scrollbar-thumb': {
+						borderRadius: '0.25rem',
+						backgroundColor: '#374151'
+					}
+				},
+				'.scrollbar-dark': {
+					'&::-webkit-scrollbar-track': {
+						backgroundColor: '#374151'
+					},
+					'&::-webkit-scrollbar-thumb': {
+						backgroundColor: '#f3f4f6'
+					}
+				}
+			}
+
+			addUtilities(scrollbarUtilities, ['dark'])
+		},
+		addVariablesForColors
+	]
+}
+export default config
