@@ -4,7 +4,7 @@ import { BellIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Marquee } from '@/components/ui/marquee'
 import { BentoCard, BentoGrid } from '@/components/ui/bento-grid'
-import { AnimatedListDemo } from '@/containers/landingpage/animated-list-demo'
+import { AnimatedListDemo } from '@/containers/landing-page/animated-list-demo'
 import { IconBrandDatabricks, IconBrandTelegram, IconHelpOctagon, IconMessage } from '@tabler/icons-react'
 
 const text = 'What is TASKZEN? What is TASKZEN? What is TASKZEN?'
