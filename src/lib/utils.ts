@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode'
 import { io } from 'socket.io-client'
 import { toast } from '@/hooks/use-toast'
 import { TokenPayload } from '@/types/jwt.type'
+import authApiRequest from '@/api-requests/auth'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -104,48 +105,48 @@ export const setRefreshTokenToLocalStorage = (value: string) => {
   }
 }
 
-// export const removeTokensFromLocalStorage = () => {
-//   isClient && localStorage.removeItem('access_token')
-//   isClient && localStorage.removeItem('refresh_token')
-// }
+export const removeTokensFromLocalStorage = () => {
+  isClient && localStorage.removeItem('access_token')
+  isClient && localStorage.removeItem('refresh_token')
+}
 
-// export const checkAndRefreshToken = async (param?: {
-//   onError?: () => void
-//   onSuccess?: () => void
-//   force?: boolean
-// }) => {
-//   const access_token = getAccessTokenFromLocalStorage()
-//   const refresh_token = getRefreshTokenFromLocalStorage()
-//   // Chưa đăng nhập thì cũng không cho chạy
-//   if (!access_token || !refresh_token) return
-//   const decodedAccessToken = decodeToken(access_token)
-//   const decodedRefreshToken = decodeToken(refresh_token)
+export const checkAndRefreshToken = async (param?: {
+  onError?: () => void
+  onSuccess?: () => void
+  force?: boolean
+}) => {
+  const access_token = getAccessTokenFromLocalStorage()
+  const refresh_token = getRefreshTokenFromLocalStorage()
+  // Chưa đăng nhập thì cũng không cho chạy
+  if (!access_token || !refresh_token) return
+  const decodedAccessToken = decodeToken(access_token)
+  const decodedRefreshToken = decodeToken(refresh_token)
 
-//   // Thời điểm hết hạn của token là tính theo epoch time (s)
-//   // Còn khi các bạn dùng cú pháp new Date().getTime() thì nó sẽ trả về epoch time (ms)
-//   const now = Math.round(new Date().getTime() / 1000)
-//   // trường hợp refresh token hết hạn thì cho logout
-//   if (decodedRefreshToken.exp <= now) {
-//     removeTokensFromLocalStorage()
-//     return param?.onError && param.onError()
-//   }
+  // Thời điểm hết hạn của token là tính theo epoch time (s)
+  // Còn khi các bạn dùng cú pháp new Date().getTime() thì nó sẽ trả về epoch time (ms)
+  const now = Math.round(new Date().getTime() / 1000)
+  // trường hợp refresh token hết hạn thì cho logout
+  if (decodedRefreshToken.exp <= now) {
+    removeTokensFromLocalStorage()
+    return param?.onError && param.onError()
+  }
 
-//   // trường hợp access token hết hạn thì refresh token
-//   if (param?.force || decodedAccessToken.exp - now < (decodedAccessToken.exp - decodedAccessToken.iat) / 3) {
-//     try {
-//       const { payload } = await authApiRequest.refreshToken()
-//       const { access_token, refresh_token } = payload.data
+  // trường hợp access token hết hạn thì refresh token
+  if (param?.force || decodedAccessToken.exp - now < (decodedAccessToken.exp - decodedAccessToken.iat) / 3) {
+    try {
+      const { payload } = await authApiRequest.refreshToken()
+      const { access_token, refresh_token } = payload.data
 
-//       setAccessTokenToLocalStorage(access_token)
-//       setRefreshTokenToLocalStorage(refresh_token)
+      setAccessTokenToLocalStorage(access_token)
+      setRefreshTokenToLocalStorage(refresh_token)
 
-//       param?.onSuccess && param.onSuccess()
-//     } catch (error) {
-//       removeTokensFromLocalStorage()
-//       param?.onError && param.onError()
-//     }
-//   }
-// }
+      param?.onSuccess && param.onSuccess()
+    } catch (error) {
+      removeTokensFromLocalStorage()
+      param?.onError && param.onError()
+    }
+  }
+}
 
 export const generateSocketInstace = (access_token: string) => {
   const socket = io(envConfig.NEXT_PUBLIC_API_ENDPOINT, {

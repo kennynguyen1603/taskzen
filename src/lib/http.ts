@@ -1,4 +1,4 @@
-import envConfig from '@/config'
+import envConfig from '@/config/evn.config'
 import {
   getAccessTokenFromLocalStorage,
   normalizePath,
@@ -6,7 +6,7 @@ import {
   setAccessTokenToLocalStorage,
   setRefreshTokenToLocalStorage
 } from '@/lib/utils'
-import { LoginResType } from '@/schemaValidations/auth.schema'
+import { LoginResType } from '@/schema-validations/auth.schema'
 import { ErrorPayload } from '@/types/error.type'
 import Cookies from 'js-cookie'
 import { redirect } from 'next/navigation'
