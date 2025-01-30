@@ -5,9 +5,10 @@ import { Provider } from 'react-wrap-balancer'
 import AppProvider from '@/provider/app-provider'
 import { Toaster } from '@/components/ui/toaster'
 import TopLoader from '@/components/top-loader'
-import { ProfileProvider } from '@/contexts/profile-context'
 import { ThemeProvider } from '@/provider/theme-provider'
 import { ScrollProgress } from '@/components/ui/scroll-progress'
+import { AOSInit } from '@/components/aos'
+import { UserProvider } from '@/contexts/profile-context'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -34,13 +35,14 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Provider>
           <AppProvider>
-            <ThemeProvider>
-              <ProfileProvider>
+            <ThemeProvider attribute='class' defaultTheme='light' forcedTheme='light'>
+              <UserProvider>
                 <TopLoader />
+                <AOSInit />
                 <ScrollProgress />
                 {children}
                 <Toaster />
-              </ProfileProvider>
+              </UserProvider>
             </ThemeProvider>
           </AppProvider>
         </Provider>
