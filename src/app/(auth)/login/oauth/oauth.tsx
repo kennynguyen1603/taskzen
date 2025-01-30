@@ -1,37 +1,55 @@
-"use client";
+'use client'
 
-import { toast } from "@/hooks/use-toast";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { toast } from '@/hooks/use-toast'
+import { generateSocketInstace } from '@/lib/utils'
+import { useAppStore } from '@/provider/app-provider'
+import { useSetTokenToCookieMutation } from '@/queries/useAuth'
+import { Metadata } from 'next'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useRef } from 'react'
+
+export const metadata: Metadata = {
+  title: 'Google Login Redirect',
+  description: 'Google Login Redirect',
+  robots: {
+    index: false
+  }
+}
 
 export default function Oauth() {
-  const router = useRouter();
-  const count = useRef(0);
+  const { mutateAsync } = useSetTokenToCookieMutation()
+  const router = useRouter()
+  const count = useRef(0)
+  const setSocket = useAppStore((state) => state.setSocket)
 
-  const searchParams = useSearchParams();
-  const access_token = searchParams.get("access_token");
-  const refresh_token = searchParams.get("refresh_token");
+  const searchParams = useSearchParams()
+  const access_token = searchParams.get('access_token')
+  const refresh_token = searchParams.get('refresh_token')
   useEffect(() => {
     if (access_token && refresh_token) {
       if (count.current === 0) {
-        // 1. Thêm access_token vào localStorage và refresh_token vào cookie
-        localStorage.setItem("access_token", access_token);
-        // document.cookie = `refresh_token=${refresh_token}; path=/`;
-
-        // 2. Chuyển hướng đến trang home
-        router.push("/");
-        count.current++;
+        mutateAsync({ access_token, refresh_token })
+          .then(() => {
+            setSocket(generateSocketInstace(access_token))
+            router.push('/dashboard')
+          })
+          .catch((e) => {
+            toast({
+              description: e.message || 'Có lỗi xảy ra'
+            })
+          })
+        count.current++
       }
     } else {
       if (count.current === 0) {
         setTimeout(() => {
           toast({
-            description: "Có lỗi xảy ra",
-          });
-        });
-        count.current++;
+            description: 'Có lỗi xảy ra'
+          })
+        })
+        count.current++
       }
     }
-  }, [access_token, refresh_token, router]);
-  return null;
+  }, [access_token, refresh_token, setSocket, router, mutateAsync])
+  return null
 }
