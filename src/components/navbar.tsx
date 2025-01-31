@@ -1,5 +1,7 @@
 'use client'
 
+// import { useRouter } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app'
 import { Button } from '@/components/ui/button'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, Moon, Sun, X } from 'lucide-react'
@@ -12,6 +14,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ onNavigate }: NavbarProps) {
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -27,17 +30,17 @@ export function Navbar({ onNavigate }: NavbarProps) {
   }, [])
 
   const navItems = [
-    { name: 'Roadmap', section: 'roadmap' },
-    { name: 'Stats', section: 'stats' },
+    { name: 'Showcase', section: 'showcase' },
     { name: 'Features', section: 'features' },
+    { name: 'Roadmap', section: 'roadmap' },
     { name: 'FAQs', section: 'faqs' }
   ]
 
   const handleNavigation = (section?: string, href?: string) => {
     if (href) {
-      window.location.href = href
+      router.push(href) // Điều hướng tới trang mới
     } else if (section) {
-      onNavigate(section)
+      onNavigate(section) // Điều hướng tới phần cụ thể trên trang
     }
     setIsMenuOpen(false)
   }
@@ -92,7 +95,10 @@ export function Navbar({ onNavigate }: NavbarProps) {
           </motion.div>
 
           <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-            <Button onClick={() => handleNavigation('login')} className='text-sm font-medium px-4 py-2 rounded-full'>
+            <Button
+              onClick={() => handleNavigation(undefined, '/login')} // Điều hướng tới /login
+              className='text-sm font-medium px-4 py-2 rounded-full'
+            >
               Login
             </Button>
           </motion.div>
@@ -124,38 +130,6 @@ export function Navbar({ onNavigate }: NavbarProps) {
           </motion.div>
         </div>
       </div>
-
-      {/* Mobile Navigation Menu */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className='md:hidden'
-          >
-            <div className='px-4 py-3 space-y-2 bg-background/90 backdrop-blur-md border-t border-primary/10'>
-              {navItems.map((item, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Button
-                    variant='ghost'
-                    className='w-full text-left justify-start text-sm font-medium hover:bg-primary/10 rounded-full py-3'
-                    onClick={() => handleNavigation(item.section)}
-                  >
-                    {item.name}
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.nav>
   )
 }
