@@ -2,10 +2,12 @@
 
 import { HeroSection } from '@/components/sections/hero-section'
 import { RoadmapSection } from '@/components/sections/roadmap-section'
-import { StatsSection } from '@/components/sections/stats-section'
 import { motion } from 'framer-motion'
-import FAQs from '@/containers/landingpage/faqs'
-import { Features } from '@/containers/landingpage/features'
+import FAQs from '@/containers/landing-page/faqs'
+import { Features } from '@/containers/landing-page/features'
+// import { HeroParallaxLanding } from '@/containers/landing-page/hero-parallax'
+import { AIInsightsDashboard } from '@/containers/landing-page/ai-insights-dashboard'
+import Showcase from '@/containers/landing-page/showcase'
 
 export default function Home() {
   return (
@@ -16,17 +18,12 @@ export default function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Background gradients */}
-        <div className='absolute inset-0 -z-10'>
-          <div className='absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(22,189,202,0.1)_0%,rgba(0,0,0,0)_100%)]' />
-          <div className='absolute inset-0 bg-[radial-gradient(circle_at_60%_50%,rgba(130,71,229,0.1)_0%,rgba(0,0,0,0)_100%)]' />
-          <div className='absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(78,125,239,0.1)_0%,rgba(0,0,0,0)_100%)]' />
-        </div>
-
         <HeroSection />
-        <StatsSection />
-        <RoadmapSection />
+        {/* <HeroParallaxLanding /> */}
+        <Showcase />
         <Features />
+        <AIInsightsDashboard />
+        <RoadmapSection />
         <FAQs />
       </motion.main>
     </>
