@@ -1,6 +1,6 @@
 'use client'
 
-import { useContext } from 'react'
+import { useContext, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
@@ -8,7 +8,7 @@ import { SiGoogle } from 'react-icons/si'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
-import { generateSocketInstace, handleErrorApi, setAccessTokenToLocalStorage } from '@/lib/utils'
+import { decodeToken, generateSocketInstace, handleErrorApi, setAccessTokenToLocalStorage } from '@/lib/utils'
 import { LoginForm } from './login-form'
 import { FeatureCard } from '@/components/auth/feature-card'
 import { TechBackground } from '@/components/auth/tech-background'
@@ -17,23 +17,36 @@ import { LoginBodyType } from '@/schema-validations/auth.schema'
 import { UserContext } from '@/contexts/profile-context'
 import { useGetMeMutation } from '@/queries/useAccount'
 import { useAppStore } from '@/provider/app-provider'
+import Logout from './logout'
+import { useSearchParamsLoader } from '@/components/search-params-loader'
 
 export default function LoginPage() {
   const loginMutation = useLoginMutation()
+  const { searchParams, setSearchParams } = useSearchParamsLoader()
   const router = useRouter()
   const me = useGetMeMutation()
+  const clearTokens = searchParams?.get('clearTokens')
   const { setUser } = useContext(UserContext) || {}
   const setSocket = useAppStore((state) => state.setSocket)
+  const setRole = useAppStore((state) => state.setRole)
+
+  useEffect(() => {
+    if (clearTokens) {
+      setRole()
+    }
+  }, [clearTokens, setRole])
 
   const onSubmit = async (data: LoginBodyType, setError: any) => {
     if (loginMutation.isPending) return
     try {
       const res = await loginMutation.mutateAsync(data)
+      const { role } = decodeToken(res.payload.metadata.access_token)
       const response = await me.mutateAsync()
       toast({
         description: res.payload.message
       })
-      setUser?.(response.payload.data)
+      setUser?.(response.payload.metadata)
+      setRole?.(role)
       if (typeof window !== 'undefined') {
         setSocket(generateSocketInstace(res.payload.metadata.access_token))
         router.push('/dashboard')
@@ -130,6 +143,7 @@ export default function LoginPage() {
           </div>
         </motion.div>
       </div>
+      <Logout />
     </div>
   )
 }
