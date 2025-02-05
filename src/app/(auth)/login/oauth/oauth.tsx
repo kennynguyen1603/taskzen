@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from '@/hooks/use-toast'
-import { generateSocketInstace } from '@/lib/utils'
+import { decodeToken, generateSocketInstace } from '@/lib/utils'
 import { useAppStore } from '@/provider/app-provider'
 import { useSetTokenToCookieMutation } from '@/queries/useAuth'
 import { Metadata } from 'next'
@@ -21,6 +21,7 @@ export default function Oauth() {
   const router = useRouter()
   const count = useRef(0)
   const setSocket = useAppStore((state) => state.setSocket)
+  const setRole = useAppStore((state) => state.setRole)
 
   const searchParams = useSearchParams()
   const access_token = searchParams.get('access_token')
@@ -28,8 +29,10 @@ export default function Oauth() {
   useEffect(() => {
     if (access_token && refresh_token) {
       if (count.current === 0) {
+        const { role } = decodeToken(access_token)
         mutateAsync({ access_token, refresh_token })
           .then(() => {
+            setRole(role)
             setSocket(generateSocketInstace(access_token))
             router.push('/dashboard')
           })
@@ -50,6 +53,6 @@ export default function Oauth() {
         count.current++
       }
     }
-  }, [access_token, refresh_token, setSocket, router, mutateAsync])
+  }, [access_token, refresh_token, setRole, setSocket, router, mutateAsync])
   return null
 }
