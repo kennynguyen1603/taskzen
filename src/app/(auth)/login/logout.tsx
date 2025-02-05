@@ -13,8 +13,8 @@ function LogoutComponent() {
   const disconnectSocket = useAppStore((state) => state.disconnectSocket)
   const setRole = useAppStore((state) => state.setRole)
   const searchParams = useSearchParams()
-  const refreshTokenFromUrl = searchParams.get('refreshToken')
-  const accessTokenFromUrl = searchParams.get('accessToken')
+  const refreshTokenFromUrl = searchParams.get('refresh_token')
+  const accessTokenFromUrl = searchParams.get('access_token')
   const ref = useRef<any>(null)
   useEffect(() => {
     if (
