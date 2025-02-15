@@ -1,65 +1,49 @@
-"use client";
+'use client'
 
-import { getAccessTokenFromLocalStorage } from "@/lib/utils";
-import { createContext, useState, useEffect, ReactNode } from "react";
-
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
+import { getAccessTokenFromLocalStorage } from '@/lib/utils'
+import { useGetMeMutation } from '@/queries/useAccount'
+import { AccountType } from '@/schema-validations/account.schema'
+import { formatDate } from 'date-fns'
+import React, { createContext, useState, useEffect, ReactNode } from 'react'
+interface UserContextProps {
+  user: AccountType | null
+  setUser: React.Dispatch<React.SetStateAction<AccountType | null>>
 }
 
-type ProfileContextType = {
-  profile: Profile | null;
-  setProfile: (profile: Profile | null) => void;
-};
+export const UserContext = createContext<UserContextProps | undefined>(undefined)
 
-export const ProfileContext = createContext<ProfileContextType>({
-  profile: null,
-  setProfile: () => {},
-});
+interface UserProviderProps {
+  children: ReactNode
+}
 
-type ProfileProviderProps = {
-  children: ReactNode;
-};
+export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AccountType | null>(null)
+  const me = useGetMeMutation()
 
-export const ProfileProvider = ({ children }: ProfileProviderProps) => {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const isLoggin = getAccessTokenFromLocalStorage() && getAccessTokenFromLocalStorage()
 
   useEffect(() => {
-    const accessToken = getAccessTokenFromLocalStorage();
-    if (accessToken) {
-      fetch(`${process.env.NEXT_PUBLIC_API_ENDPOINT}/user/profile`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-        .then((res) => {
-          if (!res.ok) {
-            if (res.status === 401) {
-              setProfile(null);
-              localStorage.removeItem("access_token");
-            }
-            throw new Error("Failed to fetch profile");
-          }
-          return res.json();
-        })
-        .then((data) => {
-          console.log("Fetched profile:", data);
-          setProfile(data);
-        })
-        .catch((error) => {
-          console.error("Error fetching profile:", error);
-        });
-    } else {
-      setProfile(null);
-    }
-  }, []);
+    const fetchData = async () => {
+      try {
+        const response = await me.mutateAsync()
+        const userData = response.payload.metadata
 
-  return (
-    <ProfileContext.Provider value={{ profile, setProfile }}>
-      {children}
-    </ProfileContext.Provider>
-  );
-};
+        if (userData?.date_of_birth && typeof userData.date_of_birth !== null) {
+          userData.date_of_birth = formatDate(userData.date_of_birth, 'yyyy-MM-dd')
+        }
+
+        setUser(userData)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        setUser(null)
+      }
+    }
+
+    if (isLoggin) {
+      fetchData()
+    }
+  }, [])
+  // Dependency array rỗng để chỉ gọi API khi component được mount (F5 hoặc load trang)
+
+  return <UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>
+}
