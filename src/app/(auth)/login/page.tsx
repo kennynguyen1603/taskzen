@@ -42,15 +42,20 @@ export default function LoginPage() {
       const res = await loginMutation.mutateAsync(data)
       const { role } = decodeToken(res.payload.metadata.access_token)
       const response = await me.mutateAsync()
+
+      setUser?.(response.payload.metadata)
+      setRole?.(role)
+      setAccessTokenToLocalStorage(res.payload.metadata.access_token)
+
+      // Create socket and redirect only after successful login
+      const socket = generateSocketInstace(res.payload.metadata.access_token)
+      setSocket(socket)
+
       toast({
         description: res.payload.message
       })
-      setUser?.(response.payload.metadata)
-      setRole?.(role)
-      if (typeof window !== 'undefined') {
-        setSocket(generateSocketInstace(res.payload.metadata.access_token))
-        router.push('/dashboard')
-      }
+
+      router.push('/dashboard')
     } catch (error: any) {
       handleErrorApi({
         error,

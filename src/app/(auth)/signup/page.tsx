@@ -24,7 +24,7 @@ export default function SignUpPage() {
       toast({
         description: res.payload.message
       })
-      router.push('/dashboard')
+      router.push('/login')
     } catch (error: any) {
       handleErrorApi({
         error,
