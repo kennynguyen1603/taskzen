@@ -24,6 +24,6 @@
       "public/*": ["./public/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/dashboard/projects/[id]/calendar"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/dashboard/projects/[projectId]/calendar"],
   "exclude": ["node_modules"]
 }
