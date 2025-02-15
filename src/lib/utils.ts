@@ -135,7 +135,7 @@ export const checkAndRefreshToken = async (param?: {
   if (param?.force || decodedAccessToken.exp - now < (decodedAccessToken.exp - decodedAccessToken.iat) / 3) {
     try {
       const { payload } = await authApiRequest.refreshToken()
-      const { access_token, refresh_token } = payload.data
+      const { access_token, refresh_token } = payload.metadata
 
       setAccessTokenToLocalStorage(access_token)
       setRefreshTokenToLocalStorage(refresh_token)
@@ -149,19 +149,14 @@ export const checkAndRefreshToken = async (param?: {
 }
 
 export const generateSocketInstace = (access_token: string) => {
-  const socket = io(envConfig.NEXT_PUBLIC_API_ENDPOINT, {
+  return io(envConfig.NEXT_PUBLIC_API_ENDPOINT, {
     auth: {
       Authorization: `Bearer ${access_token}`
-    }
+    },
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 10000,
+    transports: ['websocket', 'polling']
   });
-
-  socket.on('connect_error', (err) => {
-    console.error('Connection Error:', err.message);
-  });
-
-  socket.on('error', (err) => {
-    console.error('Socket Error:', err.message);
-  });
-
-  return socket;
 }
