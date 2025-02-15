@@ -1,0 +1,80 @@
+export const mockData = {
+    projectStatus: [
+        { name: "Completed", value: 5 },
+        { name: "In Progress", value: 3 },
+        { name: "Planning", value: 2 },
+        { name: "On Hold", value: 1 },
+    ],
+    chartColors: ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"],
+    taskTrends: [
+        { date: "Mon", completed: 5, total: 7 },
+        { date: "Tue", completed: 8, total: 10 },
+        { date: "Wed", completed: 6, total: 8 },
+        { date: "Thu", completed: 9, total: 9 },
+        { date: "Fri", completed: 7, total: 12 },
+        { date: "Sat", completed: 4, total: 6 },
+        { date: "Sun", completed: 3, total: 5 },
+    ],
+    productivityData: [
+        { name: "Week 1", actual: 75, expected: 70 },
+        { name: "Week 2", actual: 80, expected: 75 },
+        { name: "Week 3", actual: 85, expected: 80 },
+        { name: "Week 4", actual: 90, expected: 85 },
+    ],
+    projects: [
+        { id: 1, name: "Website Redesign", status: "In Progress", completion: 60 },
+        { id: 2, name: "Mobile App Development", status: "Planning", completion: 20 },
+        { id: 3, name: "Data Migration", status: "Completed", completion: 100 },
+        { id: 4, name: "AI Integration", status: "In Progress", completion: 40 },
+        { id: 5, name: "Security Audit", status: "On Hold", completion: 50 },
+    ],
+    scheduleEvents: [
+        { id: 1, title: "Team Standup", time: "09:00 AM", date: new Date() },
+        { id: 2, title: "Client Meeting", time: "02:00 PM", date: new Date(new Date().setDate(new Date().getDate() + 1)) },
+        {
+            id: 3,
+            title: "Project Deadline",
+            time: "06:00 PM",
+            date: new Date(new Date().setDate(new Date().getDate() + 2)),
+        },
+        {
+            id: 4,
+            title: "Team Building Event",
+            time: "03:00 PM",
+            date: new Date(new Date().setDate(new Date().getDate() + 3)),
+        },
+        { id: 5, title: "Product Launch", time: "10:00 AM", date: new Date(new Date().setDate(new Date().getDate() + 5)) },
+    ],
+    messages: [
+        {
+            id: 1,
+            sender: "Alice Johnson",
+            content: "Can you review the latest design?",
+            time: "10:30 AM",
+            avatar: "/avatars/alice.jpg",
+        },
+        {
+            id: 2,
+            sender: "Bob Smith",
+            content: "Meeting rescheduled to 3 PM",
+            time: "11:15 AM",
+            avatar: "/avatars/bob.jpg",
+        },
+        {
+            id: 3,
+            sender: "Charlie Brown",
+            content: "Project files updated",
+            time: "12:00 PM",
+            avatar: "/avatars/charlie.jpg",
+        },
+        { id: 4, sender: "Diana Ross", content: "New task assigned to you", time: "2:45 PM", avatar: "/avatars/diana.jpg" },
+        {
+            id: 5,
+            sender: "Ethan Hunt",
+            content: "Urgent: Server downtime tonight",
+            time: "4:30 PM",
+            avatar: "/avatars/ethan.jpg",
+        },
+    ],
+}
+
