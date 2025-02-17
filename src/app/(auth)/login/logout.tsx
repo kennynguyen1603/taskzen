@@ -6,6 +6,7 @@ import { useLogoutMutation } from '@/queries/useAuth'
 import { useSearchParams } from 'next/navigation'
 import { memo, Suspense, useEffect, useRef } from 'react'
 import { useAppStore } from '@/provider/app-provider'
+import { useProjectStore } from '@/hooks/use-project-store'
 
 function LogoutComponent() {
   const { mutateAsync } = useLogoutMutation()
@@ -16,6 +17,7 @@ function LogoutComponent() {
   const refreshTokenFromUrl = searchParams.get('refresh_token')
   const accessTokenFromUrl = searchParams.get('access_token')
   const ref = useRef<any>(null)
+  const clearProjectStorage = useProjectStore((state) => state.clearProjectStorage)
   useEffect(() => {
     if (
       !ref.current &&
@@ -29,11 +31,12 @@ function LogoutComponent() {
         }, 1000)
         setRole()
         disconnectSocket()
+        clearProjectStorage()
       })
     } else if (accessTokenFromUrl !== getAccessTokenFromLocalStorage()) {
       router.push('/')
     }
-  }, [mutateAsync, router, refreshTokenFromUrl, accessTokenFromUrl, setRole, disconnectSocket])
+  }, [mutateAsync, router, refreshTokenFromUrl, accessTokenFromUrl, setRole, disconnectSocket, clearProjectStorage])
   return null
 }
 
