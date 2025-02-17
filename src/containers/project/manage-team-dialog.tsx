@@ -49,9 +49,6 @@ export function ManageTeamDialog({
     setLocalProject(project)
   }, [project])
 
-  const participantData = selectedProject?.participants || []
-  const projectId = selectedProject?._id
-
   const handleRemoveUser = async (participantId: string) => {
     onRemoveUser(participantId)
     setLocalProject((prevProject) => ({
