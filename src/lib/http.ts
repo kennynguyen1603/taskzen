@@ -149,6 +149,7 @@ const request = async <Response>(
               console.error('Error during logout:', error);
             } finally {
               removeTokensFromLocalStorage();
+              localStorage.removeItem('project-storage');
               clientLogoutRequest = null;
               location.href = `/login`;
             }
@@ -181,6 +182,7 @@ const request = async <Response>(
       setRefreshTokenToLocalStorage(refresh_token);
     } else if ('api/auth/logout' === normalizeUrl) {
       removeTokensFromLocalStorage();
+      localStorage.removeItem('project-storage');
     }
   }
 
