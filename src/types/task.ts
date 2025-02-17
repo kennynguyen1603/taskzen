@@ -9,7 +9,9 @@ export enum TaskPriority {
 export enum TaskStatus {
     TODO = "To Do",
     IN_PROGRESS = "In Progress",
-    COMPLETED = "Completed"
+    COMPLETED = "Completed",
+    REVIEW = "Review",
+    BLOCKED = "Blocked",
 }
 
 export enum TaskType {
@@ -45,11 +47,9 @@ export interface Task {
     dueDate: Date;
     deleted?: boolean;
     deletedAt?: Date;
-    created_at: Date;
-    updated_at: Date;
+    created_at: Date | null;
+    updated_at: Date | null;
 }
-
-
 
 export interface User {
     _id: string
@@ -59,3 +59,13 @@ export interface User {
     role?: string
 }
 
+export interface NewTask {
+    title: string;
+    description?: string;
+    type: TaskType;
+    assignee?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    progress?: number;
+    dueDate?: Date | null;
+}
