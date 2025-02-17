@@ -14,7 +14,13 @@ import { useProjectStore, getFilteredTasks } from '@/hooks/use-project-store'
 import { useGetTasksQueryOfProject, useUpdateTaskMutation } from '@/queries/useTask'
 
 export default function TaskList({ projectId }: { projectId: string }) {
-  const { data: tasksData, fetchNextPage, hasNextPage, isFetchingNextPage } = useGetTasksQueryOfProject(projectId)
+  const {
+    data: tasksData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useGetTasksQueryOfProject(projectId)
   const updateTask = useUpdateTaskMutation()
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set())
   const selectedProject = useProjectStore((state) => state.selectedProject)
@@ -22,25 +28,7 @@ export default function TaskList({ projectId }: { projectId: string }) {
   const setTasksOfProject = useProjectStore((state) => state.setTasksOfProject)
   const cleanup = useProjectStore((state) => state.cleanup)
 
-  // Cleanup khi component unmount hoặc projectId thay đổi
-  useEffect(() => {
-    if (!projectId) return
-
-    // Chỉ cleanup tasks khi chuyển project
-    cleanup()
-
-    // Đảm bảo fetch dữ liệu mới khi projectId thay đổi
-    if (tasksData?.pages) {
-      const tasks = tasksData.pages.flatMap((page) => page.payload.metadata.payload)
-      setTasksOfProject(tasks)
-    }
-
-    return () => {
-      cleanup()
-    }
-  }, [cleanup, projectId, tasksData])
-
-  // Cập nhật tasks khi có dữ liệu mới từ API
+  // Chỉ cập nhật tasks một lần khi có data mới
   useEffect(() => {
     if (tasksData?.pages) {
       const tasks = tasksData.pages.flatMap((page) => page.payload.metadata.payload)
@@ -48,27 +36,22 @@ export default function TaskList({ projectId }: { projectId: string }) {
     }
   }, [tasksData, setTasksOfProject])
 
-  // Reset expanded state khi projectId thay đổi
-  useEffect(() => {
-    setExpandedTasks(new Set())
-  }, [projectId])
-
   const filteredTasks = getFilteredTasks()
-
-  console.log('filteredTasks', filteredTasks)
 
   const priorityColors = {
     Low: 'bg-blue-100 text-blue-800',
     Medium: 'bg-yellow-100 text-yellow-800',
     High: 'bg-orange-100 text-orange-800',
     Urgent: 'bg-red-100 text-red-800',
-    'No Priority': 'bg-gray-100 text-gray-100'
+    'No Priority': 'bg-gray-100 text-gray-800'
   }
 
   const statusColors = {
     'To Do': 'bg-gray-100 text-gray-800',
     'In Progress': 'bg-purple-100 text-purple-800',
-    Completed: 'bg-green-100 text-green-800'
+    Completed: 'bg-green-100 text-green-800',
+    Review: 'bg-blue-100 text-blue-800',
+    Blocked: 'bg-red-100 text-red-800'
   }
 
   const typeIcons = {
@@ -93,22 +76,11 @@ export default function TaskList({ projectId }: { projectId: string }) {
 
   const handleChangeAssignee = async (taskId: string, userId: string) => {
     try {
-      const result = await updateTask.mutateAsync({ projectId, taskId, body: { assignee: userId } })
-
-      // Cập nhật lại toàn bộ danh sách tasks từ API thay vì chỉ cập nhật local state
-      if (tasksData?.pages) {
-        const tasks = tasksData.pages.flatMap((page) => page.payload.metadata.payload)
-        const updatedTasks = tasks.map((task) => {
-          if (task._id === taskId) {
-            return {
-              ...task,
-              assignee: participantData.find((p) => p.user_id === userId)
-            }
-          }
-          return task
-        })
-        setTasksOfProject(updatedTasks)
-      }
+      await updateTask.mutateAsync({
+        projectId,
+        taskId,
+        body: { assignee: userId }
+      })
     } catch (error) {
       console.error('Failed to update assignee:', error)
     }
@@ -173,6 +145,19 @@ export default function TaskList({ projectId }: { projectId: string }) {
           <ul className='mt-2 space-y-2'>{task.children.map((subtask) => renderTask(subtask, true))}</ul>
         )} */}
       </li>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <Card className='w-full'>
+        <CardHeader>
+          <CardTitle>Project Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div>Loading tasks...</div>
+        </CardContent>
+      </Card>
     )
   }
 

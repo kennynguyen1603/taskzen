@@ -68,14 +68,17 @@ export function ActivityList({ projectId }: { projectId: string }) {
   return (
     <ScrollArea className='h-[350px] pr-4'>
       <div className='space-y-8'>
-        {data.pages.flatMap((page) =>
+        {data.pages.flatMap((page, pageIndex) =>
           page.payload.metadata.payload.map((activity, index) => {
             const IconComponent = getActivityIcon(activity.action, activity.detail)
             const colorClass = getActivityColor(activity.action)
 
+            // Tạo key duy nhất bằng cách kết hợp pageIndex, index và activity._id
+            const uniqueKey = `${pageIndex}-${index}-${activity._id}`
+
             return (
               <motion.div
-                key={activity._id}
+                key={uniqueKey}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}

@@ -45,15 +45,12 @@ export function ManageTeamDialog({
   const [localProject, setLocalProject] = useState(project)
   const selectedProject = useProjectStore((state) => state.selectedProject)
 
-  if (!selectedProject) {
-    return null
-  }
-
-  const projectId = selectedProject._id
-
   useEffect(() => {
     setLocalProject(project)
   }, [project])
+
+  const participantData = selectedProject?.participants || []
+  const projectId = selectedProject?._id
 
   const handleRemoveUser = async (participantId: string) => {
     onRemoveUser(participantId)
@@ -88,6 +85,19 @@ export function ManageTeamDialog({
   const isUserLeaderOrCreator =
     localProject.participants.some((p) => p.user_id === currentUser._id && p.role === 'leader') ||
     localProject.creator._id === currentUser._id
+
+  const isUserInTeam = (userId: string) => {
+    if (!selectedProject?.participants) return false
+
+    return selectedProject.participants.some((participant) => {
+      if (!participant?._id) return false
+      return participant._id === userId
+    })
+  }
+
+  if (!localProject || !selectedProject) {
+    return null
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
