@@ -15,14 +15,11 @@ import {
   Settings,
   Plus,
   ChevronLeft,
-  MoreHorizontal,
-  Pin,
-  PinOff
+  MoreHorizontal
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import type React from 'react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { useProjectStore } from '@/hooks/use-project-store'
 import { CreateTaskDialog } from '@/containers/project/tasks/create-task-dialog'
@@ -32,20 +29,18 @@ const allViews = [
   { name: 'Board', icon: KanbanSquare, href: '/board' },
   { name: 'Summary', icon: ListTodo, href: '/summary' },
   { name: 'Timeline', icon: Calendar, href: '/timeline' },
-  { name: 'Calendar', icon: Calendar, href: '/calendar' },
+  // { name: 'Calendar', icon: Calendar, href: '/calendar' },
   { name: 'Priority', icon: Flag, href: '/priority' }
 ]
-
-const defaultPinnedViews = ['Overview', 'Board', 'Summary', 'Priority']
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState('')
-  const [pinnedViews, setPinnedViews] = useState<string[]>(defaultPinnedViews)
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0)
   const { projectId } = useParams() as { projectId?: string }
   const setProjectId = useProjectStore((state) => state.setProjectId)
   const selectedProject = useProjectStore((state) => state.selectedProject)
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0)
+
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth)
     window.addEventListener('resize', handleResize)
@@ -58,25 +53,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
     }
   }, [projectId, setProjectId])
 
-  const togglePin = (viewName: string) => {
-    setPinnedViews((prev) => {
-      if (prev.includes(viewName)) {
-        if (defaultPinnedViews.includes(viewName)) {
-          return prev
-        }
-        return prev.filter((v) => v !== viewName)
-      } else {
-        return [...prev, viewName]
-      }
-    })
-  }
-
-  const visibleViews = allViews.filter((view) => pinnedViews.includes(view.name))
-  const dropdownViews = allViews.filter((view) => !pinnedViews.includes(view.name))
-
-  const maxVisibleItems = windowWidth < 640 ? 1 : windowWidth < 768 ? 2 : windowWidth < 1024 ? 3 : 4
-  const displayedViews = visibleViews.slice(0, maxVisibleItems)
-  const overflowViews = [...visibleViews.slice(maxVisibleItems), ...dropdownViews]
+  const visibleViews = allViews
 
   return (
     <div className='flex min-h-screen flex-col'>
@@ -91,7 +68,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           <Separator orientation='vertical' className='h-6 mx-4 hidden sm:block' />
           <div className='flex flex-1 items-center justify-between space-x-2'>
             <nav className='flex items-center space-x-1 overflow-x-auto'>
-              {displayedViews.map((view) => {
+              {visibleViews.map((view) => {
                 const Icon = view.icon
                 const isActive =
                   view.href === ''
@@ -112,44 +89,6 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
                   </Link>
                 )
               })}
-              {overflowViews.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant='ghost' size='sm'>
-                      <MoreHorizontal className='h-4 w-4' />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align='end'>
-                    {overflowViews.map((view) => (
-                      <DropdownMenuItem key={view.name}>
-                        <Link
-                          href={`/dashboard/projects/${projectId}${view.href}`}
-                          className='flex items-center w-full'
-                        >
-                          <view.icon className='mr-2 h-4 w-4' />
-                          {view.name}
-                        </Link>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          className='ml-auto'
-                          onClick={(e) => {
-                            e.preventDefault()
-                            togglePin(view.name)
-                          }}
-                          disabled={defaultPinnedViews.includes(view.name)}
-                        >
-                          {pinnedViews.includes(view.name) ? (
-                            <PinOff className='h-4 w-4' />
-                          ) : (
-                            <Pin className='h-4 w-4' />
-                          )}
-                        </Button>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
             </nav>
             <div className='flex items-center space-x-2'>
               <div className='relative w-60 hidden md:block'>
