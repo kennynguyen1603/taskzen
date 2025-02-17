@@ -576,7 +576,9 @@ export default function Projects() {
                             id: `${project._id}-${participant._id}`,
                             name: participant.username || 'Unknown',
                             designation: participant.role || 'staff',
-                            image: participant.avatar_url || '/default-avatar.png'
+                            image:
+                              participant.avatar_url ||
+                              'https://static-00.iconduck.com/assets.00/avatar-default-symbolic-icon-479x512-n8sg74wg.png'
                           }))}
                         />
                       </div>
