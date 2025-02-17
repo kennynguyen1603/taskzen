@@ -25,6 +25,7 @@ import type React from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { useProjectStore } from '@/hooks/use-project-store'
+import { CreateTaskDialog } from '@/containers/project/tasks/create-task-dialog'
 
 const allViews = [
   { name: 'Overview', icon: LayoutGrid, href: '' },
@@ -35,7 +36,7 @@ const allViews = [
   { name: 'Priority', icon: Flag, href: '/priority' }
 ]
 
-const defaultPinnedViews = ['Overview', 'Board', 'Summary']
+const defaultPinnedViews = ['Overview', 'Board', 'Summary', 'Priority']
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -166,9 +167,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
               <Button variant='ghost' size='icon' className='hidden sm:inline-flex'>
                 <Settings className='h-4 w-4' />
               </Button>
-              <Button className='hidden sm:inline-flex'>
-                <Plus className='mr-2 h-4 w-4' /> Add Task
-              </Button>
+              <CreateTaskDialog />
             </div>
           </div>
         </div>
