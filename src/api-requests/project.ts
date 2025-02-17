@@ -65,5 +65,8 @@ const projectApiRequest = {
     sGetTasksOfProject: (projectId: string, page: number) =>
         http.get<TaskOfProjectResType>(`/projects/${projectId}/tasks?page=${page}`),
 
+    sGetAllTasksOfProject: (projectId: string) =>
+        http.get<TaskOfProjectResType>(`/projects/${projectId}/tasks?limit=1000`),
+
 }
 export default projectApiRequest
