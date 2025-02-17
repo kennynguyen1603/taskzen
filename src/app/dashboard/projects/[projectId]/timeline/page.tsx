@@ -1,31 +1,15 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-const timelineData = [
-  {
-    date: '2024-01-15',
-    title: 'Project Started',
-    description: 'Initial project setup and team allocation'
-  },
-  {
-    date: '2024-01-20',
-    title: 'Design Phase',
-    description: 'UI/UX design and prototyping'
-  },
-  {
-    date: '2024-02-01',
-    title: 'Development Kickoff',
-    description: 'Start of the development phase'
-  },
-  {
-    date: '2024-02-15',
-    title: 'First Milestone',
-    description: 'Completion of core features'
-  }
-]
+import { useProjectStore } from '@/hooks/use-project-store'
+import { useGetAllTasksOfProject } from '@/queries/useTask'
+import { Task } from '@/types/task'
+import { useParams } from 'next/navigation'
 
 export default function ProjectTimeline() {
+  const { projectId } = useParams()
+  const { data: tasksData, isLoading } = useGetAllTasksOfProject(projectId as string)
+
   return (
     <div className='container mx-auto p-6'>
       <h2 className='text-3xl font-bold mb-6'>Project Timeline</h2>
@@ -35,8 +19,8 @@ export default function ProjectTimeline() {
         </CardHeader>
         <CardContent>
           <ol className='relative border-l border-gray-200 dark:border-gray-700'>
-            {timelineData.map((item, index) => (
-              <li key={index} className='mb-10 ml-6'>
+            {tasksData?.payload?.metadata?.payload?.map((task: Task, index: number) => (
+              <li key={task._id} className='mb-10 ml-6'>
                 <span className='absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 dark:bg-blue-900'>
                   <svg
                     className='w-2.5 h-2.5 text-blue-800 dark:text-blue-300'
@@ -49,7 +33,7 @@ export default function ProjectTimeline() {
                   </svg>
                 </span>
                 <h3 className='flex items-center mb-1 text-lg font-semibold text-gray-900 dark:text-white'>
-                  {item.title}
+                  {task.title}
                   {index === 0 && (
                     <span className='bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300 ml-3'>
                       Latest
@@ -57,9 +41,9 @@ export default function ProjectTimeline() {
                   )}
                 </h3>
                 <time className='block mb-2 text-sm font-normal leading-none text-gray-400 dark:text-gray-500'>
-                  {item.date}
+                  {task.created_at ? new Date(task.created_at).toLocaleDateString() : 'No date available'}
                 </time>
-                <p className='mb-4 text-base font-normal text-gray-500 dark:text-gray-400'>{item.description}</p>
+                <p className='mb-4 text-base font-normal text-gray-500 dark:text-gray-400'>{task.description}</p>
               </li>
             ))}
           </ol>
