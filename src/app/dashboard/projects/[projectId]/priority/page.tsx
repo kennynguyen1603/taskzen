@@ -17,9 +17,10 @@ import {
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { DroppableColumn } from './droppable-column'
-import { useUpdateTaskMutation } from '@/queries/useTask'
+import { useGetAllTasksOfProject, useUpdateTaskMutation } from '@/queries/useTask'
 import { TaskCard } from './task-card'
 import { Task } from '@/types/task'
+import { useParams } from 'next/navigation'
 
 const priorities = [
   { name: 'Urgent', color: 'bg-red-100', icon: '🔴' },
@@ -30,20 +31,23 @@ const priorities = [
 ]
 
 export default function PriorityView() {
-  const { tasksOfProject, setTasksOfProject } = useProjectStore()
-  const [localTasks, setLocalTasks] = useState(tasksOfProject)
+  const { projectId } = useParams()
+  const { data: tasksData, isLoading } = useGetAllTasksOfProject(projectId as string)
+  const [localTasks, setLocalTasks] = useState<Task[]>([])
   const [activeTask, setActiveTask] = useState<Task | null>(null)
-
   const updateTask = useUpdateTaskMutation()
-
-  useEffect(() => {
-    setLocalTasks(getFilteredTasks())
-  }, [tasksOfProject])
-
+  const setTasksOfProject = useProjectStore((state) => state.setTasksOfProject)
+  const tasksOfProject = useProjectStore((state) => state.tasksOfProject)
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+
+  useEffect(() => {
+    if (tasksData?.payload?.metadata?.payload) {
+      setLocalTasks(tasksData.payload.metadata.payload)
+    }
+  }, [tasksData])
 
   const handleDragStart = (event: DragStartEvent) => {
     const taskId = String(event.active.id) // Ép kiểu thành string
@@ -51,7 +55,7 @@ export default function PriorityView() {
     setActiveTask(foundTask)
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over) return
 
@@ -63,14 +67,32 @@ export default function PriorityView() {
 
     const activeTask = localTasks.find((task) => task._id === taskId)
     if (activeTask && activeTask.priority !== newPriority) {
-      setLocalTasks((prevTasks) =>
-        prevTasks.map((task) => (task._id === taskId ? { ...task, priority: newPriority } : task))
-      )
+      // Cập nhật local state trước
+      const updatedTasks = localTasks.map((task) => (task._id === taskId ? { ...task, priority: newPriority } : task))
+      setLocalTasks(updatedTasks)
+      console.log('Updated local tasks (priority page):', updatedTasks)
+      try {
+        // Cập nhật server
+        await updateTask.mutateAsync({
+          projectId: activeTask.project_id,
+          taskId: activeTask._id,
+          body: { priority: newPriority }
+        })
 
-      updateTask.mutate({ projectId: activeTask.project_id, taskId: activeTask._id, body: { priority: newPriority } })
+        // Cập nhật global state sau khi server thành công
+        setTasksOfProject(updatedTasks)
+      } catch (error) {
+        console.error('Failed to update task priority:', error)
+        // Rollback local state nếu có lỗi
+        setLocalTasks(tasksOfProject) // Rollback nếu có lỗi
+      }
     }
 
     setActiveTask(null)
+  }
+
+  if (isLoading) {
+    return <div>Loading...</div>
   }
 
   return (
@@ -81,22 +103,30 @@ export default function PriorityView() {
       onDragEnd={handleDragEnd}
     >
       <div className='container py-6'>
+        <div className='mb-4'>
+          <p>Total tasks: {localTasks.length}</p>
+        </div>
         <div className='grid grid-cols-5 gap-4'>
-          {priorities.map((priority) => (
-            <DroppableColumn
-              key={priority.name}
-              id={priority.name}
-              title={priority.name}
-              icon={priority.icon}
-              color={priority.color}
-              tasks={localTasks.filter((task) => task.priority === priority.name)}
-            >
-              <Button variant='ghost' className='w-full justify-start mt-2'>
-                <Plus className='mr-2 h-4 w-4' />
-                Add Task
-              </Button>
-            </DroppableColumn>
-          ))}
+          {priorities.map((priority) => {
+            const filteredTasks = localTasks.filter((task) => task.priority === priority.name)
+            // console.log(`${priority.name} tasks:`, filteredTasks)
+
+            return (
+              <DroppableColumn
+                key={priority.name}
+                id={priority.name}
+                title={priority.name}
+                icon={priority.icon}
+                color={priority.color}
+                tasks={filteredTasks}
+              >
+                <Button variant='ghost' className='w-full justify-start mt-2'>
+                  <Plus className='mr-2 h-4 w-4' />
+                  Add Task
+                </Button>
+              </DroppableColumn>
+            )
+          })}
         </div>
       </div>
 

@@ -148,22 +148,6 @@ export default function ProjectCalendar() {
             <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
             <Input className='pl-9 w-[200px]' placeholder='Search...' />
           </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant='outline'>
-                <Plus className='h-4 w-4 mr-2' />
-                Add Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Task</DialogTitle>
-              </DialogHeader>
-              {/* Add task form here */}
-            </DialogContent>
-          </Dialog>
-          <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} className='ml-4' />
-          {isDarkMode ? <Moon className='h-4 w-4' /> : <Sun className='h-4 w-4' />}
         </div>
       </div>
 

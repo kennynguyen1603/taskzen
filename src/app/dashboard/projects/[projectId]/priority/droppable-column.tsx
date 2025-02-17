@@ -4,13 +4,14 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { SortableTask } from './sortable-task'
 import type React from 'react' // Added import for React
+import { Task } from '@/types/task'
 
 interface DroppableColumnProps {
   id: string
   title: string
   icon: string
   color: string
-  tasks: any[]
+  tasks: Task[]
   children?: React.ReactNode
 }
 
