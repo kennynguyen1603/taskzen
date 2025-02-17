@@ -48,6 +48,14 @@ const TaskResponseSchema = z.object({
 
 export type TaskResType = z.TypeOf<typeof TaskResponseSchema>
 
+const SubTaskResponseSchema = z.object({
+    message: z.string(),
+    status: z.number(),
+    metadata: z.array(TaskSchema)
+}).strict()
+
+export type SubTaskResType = z.TypeOf<typeof SubTaskResponseSchema>
+
 const TasksResponseSchema = z.object({
     message: z.string(),
     metadata: z.object({
