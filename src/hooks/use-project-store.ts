@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { NewProject, Project, ResProject } from '@/types/project'
-import { Task } from '@/types/task';
+import { Task, TaskPriority, TaskStatus, TaskType, NewTask } from '@/types/task';
+import { useCreateTaskMutation } from '@/queries/useTask';
 
 interface State {
     projectId: string | null;
@@ -13,6 +14,15 @@ interface State {
     formErrors: { title: string; key: string; description: string }
     selectedProject: Project | null
     tasksOfProject: Task[]
+    taskFormErrors: {
+        title?: string;
+        type?: string;
+        assignee?: string;
+        status?: string;
+        priority?: string;
+        progress?: string;
+        dueDate?: string;
+    };
 }
 
 interface Actions {
@@ -30,6 +40,9 @@ interface Actions {
     setTasksOfProject: (tasks: Task[]) => void
     cleanup: () => void
     clearSelectedProject: () => void
+    setTaskFormErrors: (errors: State['taskFormErrors']) => void;
+    clearProjectStorage: () => void;
+    addTask: (task: Task) => void;
 }
 
 // Kết hợp State & Actions
@@ -48,21 +61,27 @@ export const useProjectStore = create<ProjectStore>()(
             formErrors: { title: '', key: '', description: '' },
             selectedProject: null,
             tasksOfProject: [],
+            taskFormErrors: {},
 
             // Actions
             setTasksOfProject: (tasks) => {
                 set((state) => ({
-                    tasksOfProject: tasks,
+                    tasksOfProject: tasks.map(task => ({
+                        ...task,
+                        created_at: task.created_at ? new Date(task.created_at) : new Date(),
+                        updated_at: task.updated_at ? new Date(task.updated_at) : new Date()
+                    })),
                     error: null
                 }))
             },
 
             cleanup: () => {
-                set({
-                    tasksOfProject: [], // Reset tasks
+                set((state) => ({
+                    ...state,
+                    tasksOfProject: [],
                     error: null,
                     isLoading: false
-                })
+                }))
             },
 
             // Thêm action mới để clear project
@@ -184,6 +203,30 @@ export const useProjectStore = create<ProjectStore>()(
 
             // Action: Chuyển tab
             setActiveTab: (tab) => set({ activeTab: tab }),
+
+            setTaskFormErrors: (errors) => set({ taskFormErrors: errors }),
+
+            clearProjectStorage: () => {
+                localStorage.removeItem('project-storage')
+                set({
+                    projectId: null,
+                    projects: [],
+                    searchQuery: '',
+                    activeTab: 'all',
+                    isLoading: false,
+                    error: null,
+                    formErrors: { title: '', key: '', description: '' },
+                    selectedProject: null,
+                    tasksOfProject: [],
+                    taskFormErrors: {}
+                })
+            },
+
+            addTask: (task: Task) => {
+                set((state) => ({
+                    tasksOfProject: [...state.tasksOfProject, task]
+                }))
+            }
         }),
         {
             name: 'project-storage',
@@ -191,20 +234,9 @@ export const useProjectStore = create<ProjectStore>()(
                 projects: state.projects,
                 selectedProject: state.selectedProject,
                 activeTab: state.activeTab,
-                tasksOfProject: state.tasksOfProject
+                tasksOfProject: state.tasksOfProject,
             }),
             version: 1,
-            migrate: (persistedState: any, version: number) => {
-                if (version === 0) {
-                    return {
-                        projects: persistedState.projects || [],
-                        selectedProject: persistedState.selectedProject || null,
-                        activeTab: persistedState.activeTab || 'all',
-                        tasksOfProject: persistedState.tasksOfProject || []
-                    }
-                }
-                return persistedState
-            }
         }
     )
 )
@@ -227,7 +259,7 @@ export const getFilteredProjects = () => {
     })
 }
 
-// Hàm helper: Lọc task của dự án (không cần lưu vào store)
+// Kiểm tra hàm getFilteredTasks() có đang trả về dữ liệu đúng không
 export const getFilteredTasks = () => {
     const { tasksOfProject, searchQuery } = useProjectStore.getState()
     if (!tasksOfProject || tasksOfProject.length === 0) return []
