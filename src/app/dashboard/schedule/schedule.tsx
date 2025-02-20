@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -26,8 +26,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Metadata } from 'next'
-
+import { useCreateEventMutation, useGetEventsQuery } from '@/queries/useEvent'
+import { NewEventType } from '@/schema-validations/event.schema'
+import { Badge } from '@/components/ui/badge'
 // Mock team members data
 const teamMembers = [
   { id: '1', name: 'Alice Johnson', avatar: '/avatars/alice.jpg' },
@@ -40,50 +41,48 @@ const teamMembers = [
   { id: '8', name: 'Helen Mirren', avatar: '/avatars/helen.jpg' }
 ]
 
-// Mock event data
-const initialEvents = [
-  {
-    id: '1',
-    title: 'Team Meeting',
-    start: new Date(),
-    end: new Date(new Date().setHours(new Date().getHours() + 1)),
-    type: 'meeting',
-    description: 'Weekly team sync',
-    location: 'Conference Room A',
-    assignedTo: ['1', '2', '3', '4']
-  },
-  {
-    id: '2',
-    title: 'Project A Deadline',
-    start: new Date(new Date().setDate(new Date().getDate() + 1)),
-    type: 'deadline',
-    description: 'Final submission for Project A',
-    location: 'Online',
-    assignedTo: ['2', '3']
-  },
-  {
-    id: '3',
-    title: 'Company Anniversary',
-    start: new Date(new Date().setDate(new Date().getDate() + 3)),
-    type: 'event',
-    description: 'Celebrating our 5th year!',
-    location: 'Main Hall',
-    assignedTo: ['1', '2', '3', '4']
-  }
-]
+const formatEventsForCalendar = (events: any[]) => {
+  console.log('Raw events:', events)
+  return (
+    events?.map((event) => {
+      const formattedEvent = {
+        id: event._id,
+        title: event.title,
+        start: new Date(event.start_date), // Không cần chuyển đổi nếu đã là ISO string
+        end: new Date(event.end_date), // Không cần chuyển đổi nếu đã là ISO string
+        allDay: false, // Thêm trường này để chỉ định event không phải all-day
+        extendedProps: {
+          description: event.description,
+          type: event.type,
+          priority: event.priority,
+          category: event.category,
+          location: event.location,
+          assignees: event.assignees || [],
+          reminders: event.reminders || []
+        }
+      }
+      console.log('Formatted event:', formattedEvent)
+      return formattedEvent
+    }) || []
+  )
+}
 
 export default function Schedule() {
-  const [events, setEvents] = useState(initialEvents)
+  const { data: events, isLoading, error } = useGetEventsQuery()
+  const { mutate: createEvent } = useCreateEventMutation()
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newEvent, setNewEvent] = useState({
     title: '',
-    start: '',
-    end: '',
-    type: '',
     description: '',
+    start_date: '',
+    end_date: '',
+    type: 'No_Type',
+    priority: 'No_Priority',
+    category: 'No_Category',
     location: '',
-    assignedTo: [] as string[]
+    assignees: [] as string[],
+    reminders: [] as { time: string; type: 'Email' | 'Notification' }[]
   })
   const [selectedView, setSelectedView] = useState('dayGridMonth')
   const [selectedEventType, setSelectedEventType] = useState('all')
@@ -95,61 +94,68 @@ export default function Schedule() {
   }
 
   const handleEventAdd = () => {
-    if (newEvent.title && newEvent.start && newEvent.end && newEvent.type) {
-      setEvents([
-        ...events,
-        {
-          ...newEvent,
-          id: String(events.length + 1),
-          start: new Date(newEvent.start),
-          end: new Date(newEvent.end)
+    if (newEvent.title && newEvent.start_date && newEvent.end_date) {
+      createEvent(newEvent as NewEventType, {
+        onSuccess: () => {
+          setNewEvent({
+            title: '',
+            description: '',
+            start_date: '',
+            end_date: '',
+            type: 'No_Type',
+            priority: 'No_Priority',
+            category: 'No_Category',
+            location: '',
+            assignees: [],
+            reminders: []
+          })
+          setIsDialogOpen(false)
         }
-      ])
-      setNewEvent({
-        title: '',
-        start: '',
-        end: '',
-        type: '',
-        description: '',
-        location: '',
-        assignedTo: []
       })
-      setIsDialogOpen(false)
     }
   }
 
   const handleMemberAssignment = (memberId: string) => {
     setNewEvent((prev) => ({
       ...prev,
-      assignedTo: prev.assignedTo.includes(memberId)
-        ? prev.assignedTo.filter((id) => id !== memberId)
-        : [...prev.assignedTo, memberId]
+      assignees: prev.assignees.includes(memberId)
+        ? prev.assignees.filter((id) => id !== memberId)
+        : [...prev.assignees, memberId]
     }))
   }
 
-  const filteredEvents =
-    selectedEventType === 'all' ? events : events.filter((event) => event.type === selectedEventType)
+  // Update the filteredEvents calculation with proper type checking and logging
+  const filteredEvents = React.useMemo(() => {
+    console.log('Filtering events:', events)
+    if (!Array.isArray(events)) {
+      console.log('Events is not an array')
+      return []
+    }
+    const formatted =
+      selectedEventType === 'all'
+        ? formatEventsForCalendar(events)
+        : formatEventsForCalendar(events.filter((event) => event.type === selectedEventType))
+    console.log('Filtered and formatted events:', formatted)
+    return formatted
+  }, [events, selectedEventType])
 
   const filteredTeamMembers = teamMembers.filter((member) =>
     member.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // Add these logs before returning the JSX
+  console.log('Original events:', events)
+  console.log('Formatted events for calendar:', filteredEvents)
+
+  if (isLoading) {
+    return <div>Loading...</div>
+  }
+
   return (
-    <div className='container mx-auto p-4 space-y-8'>
+    <div className='container mx-auto p-6 space-y-8'>
       <header className='flex justify-between items-center'>
         <h1 className='text-3xl font-bold'>Team Schedule</h1>
         <div className='flex space-x-4'>
-          <Select value={selectedView} onValueChange={setSelectedView}>
-            <SelectTrigger className='w-[180px]'>
-              <SelectValue placeholder='Select view' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='dayGridMonth'>Month</SelectItem>
-              <SelectItem value='timeGridWeek'>Week</SelectItem>
-              <SelectItem value='timeGridDay'>Day</SelectItem>
-              <SelectItem value='listWeek'>List</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={selectedEventType} onValueChange={setSelectedEventType}>
             <SelectTrigger className='w-[180px]'>
               <SelectValue placeholder='Filter by type' />
@@ -176,37 +182,41 @@ export default function Schedule() {
                 <div className='flex-1 space-y-4'>
                   <div className='grid grid-cols-4 items-center gap-4'>
                     <Label htmlFor='title' className='text-right'>
-                      Title
+                      Title *
                     </Label>
                     <Input
                       id='title'
                       value={newEvent.title}
                       onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                       className='col-span-3'
+                      maxLength={255}
+                      required
                     />
                   </div>
                   <div className='grid grid-cols-4 items-center gap-4'>
-                    <Label htmlFor='start' className='text-right'>
-                      Start
+                    <Label htmlFor='start_date' className='text-right'>
+                      Start Date *
                     </Label>
                     <Input
-                      id='start'
+                      id='start_date'
                       type='datetime-local'
-                      value={newEvent.start}
-                      onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })}
+                      value={newEvent.start_date}
+                      onChange={(e) => setNewEvent({ ...newEvent, start_date: e.target.value })}
                       className='col-span-3'
+                      required
                     />
                   </div>
                   <div className='grid grid-cols-4 items-center gap-4'>
-                    <Label htmlFor='end' className='text-right'>
-                      End
+                    <Label htmlFor='end_date' className='text-right'>
+                      End Date *
                     </Label>
                     <Input
-                      id='end'
+                      id='end_date'
                       type='datetime-local'
-                      value={newEvent.end}
-                      onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })}
+                      value={newEvent.end_date}
+                      onChange={(e) => setNewEvent({ ...newEvent, end_date: e.target.value })}
                       className='col-span-3'
+                      required
                     />
                   </div>
                   <div className='grid grid-cols-4 items-center gap-4'>
@@ -214,13 +224,49 @@ export default function Schedule() {
                       Type
                     </Label>
                     <Select onValueChange={(value) => setNewEvent({ ...newEvent, type: value })}>
-                      <SelectTrigger className='w-[150px]'>
+                      <SelectTrigger className='w-[180px]'>
                         <SelectValue placeholder='Select event type' />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='meeting'>Meeting</SelectItem>
-                        <SelectItem value='deadline'>Deadline</SelectItem>
-                        <SelectItem value='event'>Event</SelectItem>
+                        <SelectItem value='Meeting'>Meeting</SelectItem>
+                        <SelectItem value='Deadline'>Deadline</SelectItem>
+                        <SelectItem value='Event'>Event</SelectItem>
+                        <SelectItem value='Others'>Others</SelectItem>
+                        <SelectItem value='No_Type'>No Type</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className='grid grid-cols-4 items-center gap-4'>
+                    <Label htmlFor='priority' className='text-right'>
+                      Priority
+                    </Label>
+                    <Select onValueChange={(value) => setNewEvent({ ...newEvent, priority: value })}>
+                      <SelectTrigger className='w-[180px]'>
+                        <SelectValue placeholder='Select priority' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='Low'>Low</SelectItem>
+                        <SelectItem value='Medium'>Medium</SelectItem>
+                        <SelectItem value='High'>High</SelectItem>
+                        <SelectItem value='Urgent'>Urgent</SelectItem>
+                        <SelectItem value='No_Priority'>No Priority</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className='grid grid-cols-4 items-center gap-4'>
+                    <Label htmlFor='category' className='text-right'>
+                      Category
+                    </Label>
+                    <Select onValueChange={(value) => setNewEvent({ ...newEvent, category: value })}>
+                      <SelectTrigger className='w-[180px]'>
+                        <SelectValue placeholder='Select category' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='Work'>Work</SelectItem>
+                        <SelectItem value='Personal'>Personal</SelectItem>
+                        <SelectItem value='School'>School</SelectItem>
+                        <SelectItem value='Others'>Others</SelectItem>
+                        <SelectItem value='No_Category'>No Category</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -233,6 +279,7 @@ export default function Schedule() {
                       value={newEvent.description}
                       onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
                       className='col-span-3'
+                      maxLength={255}
                     />
                   </div>
                   <div className='grid grid-cols-4 items-center gap-4'>
@@ -244,6 +291,8 @@ export default function Schedule() {
                       value={newEvent.location}
                       onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
                       className='col-span-3'
+                      maxLength={255}
+                      pattern='^[\p{L}0-9\s,.-]+$'
                     />
                   </div>
                 </div>
@@ -267,7 +316,7 @@ export default function Schedule() {
                         <div key={member.id} className='flex items-center space-x-2 py-2'>
                           <Checkbox
                             id={`member-${member.id}`}
-                            checked={newEvent.assignedTo.includes(member.id)}
+                            checked={newEvent.assignees.includes(member.id)}
                             onCheckedChange={() => handleMemberAssignment(member.id)}
                           />
                           <Label htmlFor={`member-${member.id}`} className='flex items-center space-x-2'>
@@ -281,6 +330,64 @@ export default function Schedule() {
                       ))}
                     </ScrollArea>
                   </div>
+                </div>
+              </div>
+
+              {/* Add Reminders Section - Moved outside the flex container */}
+              <div className='mt-6'>
+                <Label className='text-right mb-2 block'>Reminders</Label>
+                <div className='space-y-4'>
+                  {newEvent.reminders.map((reminder, index) => (
+                    <div key={index} className='flex items-center gap-4'>
+                      <Input
+                        type='datetime-local'
+                        value={reminder.time}
+                        onChange={(e) => {
+                          const updatedReminders = [...newEvent.reminders]
+                          updatedReminders[index] = { ...reminder, time: e.target.value }
+                          setNewEvent({ ...newEvent, reminders: updatedReminders })
+                        }}
+                        className='flex-1'
+                      />
+                      <Select
+                        value={reminder.type}
+                        onValueChange={(value: 'Email' | 'Notification') => {
+                          const updatedReminders = [...newEvent.reminders]
+                          updatedReminders[index] = { ...reminder, type: value }
+                          setNewEvent({ ...newEvent, reminders: updatedReminders })
+                        }}
+                      >
+                        <SelectTrigger className='w-[140px]'>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='Email'>Email</SelectItem>
+                          <SelectItem value='Notification'>Notification</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant='outline'
+                        size='icon'
+                        onClick={() => {
+                          const updatedReminders = newEvent.reminders.filter((_, i) => i !== index)
+                          setNewEvent({ ...newEvent, reminders: updatedReminders })
+                        }}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant='outline'
+                    onClick={() => {
+                      setNewEvent({
+                        ...newEvent,
+                        reminders: [...newEvent.reminders, { time: '', type: 'Notification' }]
+                      })
+                    }}
+                  >
+                    Add Reminder
+                  </Button>
                 </div>
               </div>
               <DialogFooter>
@@ -302,22 +409,25 @@ export default function Schedule() {
           <Card>
             <CardContent className='p-6'>
               <FullCalendar
+                key={`calendar-${filteredEvents?.length || 0}`}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                initialView='dayGridMonth'
+                events={filteredEvents}
                 headerToolbar={{
                   left: 'prev,next today',
                   center: 'title',
                   right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
                 }}
-                initialView={selectedView}
                 editable={true}
                 selectable={true}
                 selectMirror={true}
                 dayMaxEvents={true}
                 weekends={true}
-                events={filteredEvents}
                 select={handleDateSelect}
                 eventContent={renderEventContent}
                 height='auto'
+                slotMinTime='00:00:00'
+                slotMaxTime='24:00:00'
               />
             </CardContent>
           </Card>
@@ -329,49 +439,58 @@ export default function Schedule() {
               <CardDescription>Your team's schedule for the next few days</CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className='space-y-4'>
-                {events
-                  .filter((event) => new Date(event.start) > new Date())
-                  .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-                  .slice(0, 5)
-                  .map((event) => (
-                    <li key={event.id}>
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className='text-lg'>{event.title}</CardTitle>
-                          <CardDescription>{event.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className='flex items-center space-x-2'>
-                            <Clock className='h-4 w-4' />
-                            <span>{format(new Date(event.start), 'PPP p')}</span>
-                          </div>
-                          <div className='flex items-center space-x-2 mt-2'>
-                            <MapPin className='h-4 w-4' />
-                            <span>{event.location}</span>
-                          </div>
-                          <div className='flex items-center space-x-2 mt-2'>
-                            <Users className='h-4 w-4' />
-                            <div className='flex -space-x-2'>
-                              {event.assignedTo.map((memberId) => {
-                                const member = teamMembers.find((m) => m.id === memberId)
-                                return (
-                                  <Avatar key={memberId} className='h-6 w-6 border-2 border-background'>
-                                    <AvatarImage src={member?.avatar} alt={member?.name} />
-                                    <AvatarFallback>{member?.name.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                )
-                              })}
+              <div className='space-y-4'>
+                <h2 className='text-2xl font-bold'>Upcoming Events</h2>
+                {Array.isArray(events) && events.length > 0 ? (
+                  events.map((event) => (
+                    <Card key={event._id}>
+                      <CardContent className='p-6'>
+                        <div className='flex justify-between items-start'>
+                          <div>
+                            <h3 className='text-xl font-semibold'>{event.title}</h3>
+                            <p className='text-gray-600'>{event.description}</p>
+
+                            <div className='mt-2 space-y-1'>
+                              <div className='flex items-center gap-2'>
+                                <span className='font-medium'>Time:</span>
+                                <span>
+                                  {format(new Date(event.start_date), 'PPp')} -{format(new Date(event.end_date), 'PPp')}
+                                </span>
+                              </div>
+
+                              <div className='flex items-center gap-2'>
+                                <span className='font-medium'>Location:</span>
+                                <span>{event.location}</span>
+                              </div>
                             </div>
+
+                            <div className='mt-3 flex gap-2'>
+                              <Badge variant={getPriorityVariant(event.priority)}>{event.priority}</Badge>
+                              <Badge variant='outline'>{event.type}</Badge>
+                              <Badge variant='secondary'>{event.category}</Badge>
+                            </div>
+
+                            {event.reminders && event.reminders.length > 0 && (
+                              <div className='mt-3'>
+                                <span className='font-medium'>Reminders:</span>
+                                <div className='flex gap-2 mt-1'>
+                                  {event.reminders.map((reminder, index) => (
+                                    <Badge key={index} variant='outline'>
+                                      {reminder.type} at {format(new Date(reminder.time), 'PPp')}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </CardContent>
-                        <CardFooter>
-                          <Button variant='outline'>View Details</Button>
-                        </CardFooter>
-                      </Card>
-                    </li>
-                  ))}
-              </ul>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <p>No upcoming events</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -394,13 +513,29 @@ function renderEventContent(eventInfo: any) {
 
 function getEventColor(type: string) {
   switch (type) {
-    case 'meeting':
+    case 'Meeting':
       return 'bg-blue-500'
-    case 'deadline':
+    case 'Deadline':
       return 'bg-red-500'
-    case 'event':
+    case 'Event':
       return 'bg-green-500'
+    case 'Others':
+      return 'bg-yellow-500'
     default:
       return 'bg-gray-500'
+  }
+}
+function getPriorityVariant(priority: string) {
+  switch (priority) {
+    case 'High':
+      return 'destructive'
+    case 'Medium':
+      return 'secondary'
+    case 'Low':
+      return 'default'
+    case 'Urgent':
+      return 'destructive'
+    default:
+      return 'default'
   }
 }
