@@ -1,5 +1,5 @@
 import http from "@/lib/http"
-import { NewEventType, EventType } from "@/schema-validations/event.schema"
+import { NewEventType, EventType, EventResponse } from "@/schema-validations/event.schema"
 
 const eventApiRequest = {
     sGetAllEventOfUser: () => {
@@ -13,6 +13,9 @@ const eventApiRequest = {
     },
     sDeleteEvent: (eventId: string) => {
         return http.delete(`/events/${eventId}`)
+    },
+    sGetEventById: (eventId: string) => {
+        return http.get<EventResponse>(`/events/${eventId}`)
     }
 }
 
