@@ -45,11 +45,11 @@ export default function SidebarDashboard() {
       href: '/dashboard/schedule',
       icon: <IconCalendarTime className='h-6 w-6 flex-shrink-0' />
     },
-    // {
-    //   label: 'Message',
-    //   href: '/dashboard/message',
-    //   icon: <IconBrandTelegram className='h-6 w-6 flex-shrink-0' />
-    // },
+    {
+      label: 'Message',
+      href: '/dashboard/message',
+      icon: <IconBrandTelegram className='h-6 w-6 flex-shrink-0' />
+    },
     {
       label: 'Settings',
       href: '/dashboard/settings',

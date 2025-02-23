@@ -1,35 +1,64 @@
 'use client'
 
-import React, { useState } from 'react'
-import {
-  CalendarIcon,
-  MessageSquare,
-  Briefcase,
-  Plus,
-  Bell,
-  Search,
-  LayoutDashboard,
-  Users,
-  Settings
-} from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { mockData } from '@/lib/mock-data'
 import { TaskChart } from '@/containers/dashboard-page/TaskChart'
 import { ProjectStatusChart } from '@/containers/dashboard-page/ProjectStatusChart'
 import { ProductivityChart } from '@/containers/dashboard-page/ProductivityChart'
-import { ProjectCard } from '@/containers/dashboard-page/ProjectCard'
 import { EventCard } from '@/containers/dashboard-page/EventCard'
 import { MessageCard } from '@/containers/dashboard-page/MessageCard'
 import { AddEventDialog } from '@/containers/dashboard-page/AddEventDialog'
+import { useGetProjectsMutation } from '@/queries/useProject'
+import { ResProject } from '@/types/project'
+import { useQuery } from '@tanstack/react-query'
+import { useProjectStore } from '@/hooks/use-project-store'
 
 export default function UserDashboard() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false)
+  const getProjects = useGetProjectsMutation()
+  const { projects, setProjects } = useProjectStore()
+  const { data: projectsData, isLoading: isLoadingProjects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => getProjects.mutateAsync(),
+    enabled: true,
+    refetchOnWindowFocus: false,
+    staleTime: 300000
+  })
+
+  useEffect(() => {
+    if (projectsData?.payload?.metadata) {
+      const transformedProjects = projectsData.payload.metadata.map((project) => ({
+        ...project,
+        participants: (project.participants || []).map((p) => ({
+          _id: p._id,
+          user_id: p.user._id || '',
+          project_id: project._id,
+          role: p.role,
+          status: p.status,
+          joined_at: p.joined_at,
+          username: p.user.username || '',
+          email: p.user.email || '',
+          avatar_url: p.user.avatar_url || ''
+        })),
+        revisionHistory: project.revisionHistory?.map((revision) => ({
+          ...revision,
+          changes: new Map(
+            Object.entries(revision.changes || {}).map(([key, value]) => [
+              key,
+              { from: value.from ?? null, to: value.to ?? null }
+            ])
+          )
+        }))
+      })) as ResProject[]
+      setProjects(transformedProjects)
+    }
+  }, [projectsData, setProjects])
 
   return (
     <div className='flex h-screen bg-gray-100 dark:bg-gray-900'>
@@ -73,8 +102,36 @@ export default function UserDashboard() {
               </CardHeader>
               <CardContent>
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  {mockData.projects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
+                  {projects?.map((project) => (
+                    <div
+                      key={project._id}
+                      className='p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow'
+                    >
+                      <div className='flex items-center justify-between mb-2'>
+                        <h3 className='font-semibold text-lg text-gray-800 dark:text-gray-200'>{project.title}</h3>
+                      </div>
+                      <p className='text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2'>
+                        {project.description}
+                      </p>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex -space-x-2'>
+                          {project.participants?.slice(0, 3).map((participant) => (
+                            <img
+                              key={participant._id}
+                              src={participant.avatar_url || '/default-avatar.png'}
+                              alt={participant.username}
+                              className='w-8 h-8 rounded-full border-2 border-white dark:border-gray-800'
+                              title={participant.username}
+                            />
+                          ))}
+                          {project.participants && project.participants.length > 3 && (
+                            <div className='w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium'>
+                              +{project.participants.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </CardContent>

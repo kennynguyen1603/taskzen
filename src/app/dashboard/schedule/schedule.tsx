@@ -6,7 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
-import { Plus, Clock, MapPin, Users, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,34 +22,31 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useCreateEventMutation, useGetEventsQuery } from '@/queries/useEvent'
+import { useCreateEventMutation, useGetEventsQuery, useUpdateEventMutation } from '@/queries/useEvent'
 import { NewEventType } from '@/schema-validations/event.schema'
 import { Badge } from '@/components/ui/badge'
-// Mock team members data
-const teamMembers = [
-  { id: '1', name: 'Alice Johnson', avatar: '/avatars/alice.jpg' },
-  { id: '2', name: 'Bob Smith', avatar: '/avatars/bob.jpg' },
-  { id: '3', name: 'Charlie Brown', avatar: '/avatars/charlie.jpg' },
-  { id: '4', name: 'Diana Ross', avatar: '/avatars/diana.jpg' },
-  { id: '5', name: 'Edward Norton', avatar: '/avatars/edward.jpg' },
-  { id: '6', name: 'Fiona Apple', avatar: '/avatars/fiona.jpg' },
-  { id: '7', name: 'George Clooney', avatar: '/avatars/george.jpg' },
-  { id: '8', name: 'Helen Mirren', avatar: '/avatars/helen.jpg' }
-]
+import { useRouter } from 'next/navigation'
+import { useAllParticipantsInUserProjects } from '@/queries/useProject'
+
+interface Member {
+  _id: string
+  email: string
+  username: string
+  avatar_url: string
+}
 
 const formatEventsForCalendar = (events: any[]) => {
-  console.log('Raw events:', events)
   return (
     events?.map((event) => {
       const formattedEvent = {
         id: event._id,
         title: event.title,
-        start: new Date(event.start_date), // Không cần chuyển đổi nếu đã là ISO string
-        end: new Date(event.end_date), // Không cần chuyển đổi nếu đã là ISO string
+        start: new Date(event.start_date),
+        end: new Date(event.end_date),
         allDay: false, // Thêm trường này để chỉ định event không phải all-day
         extendedProps: {
           description: event.description,
@@ -61,15 +58,16 @@ const formatEventsForCalendar = (events: any[]) => {
           reminders: event.reminders || []
         }
       }
-      console.log('Formatted event:', formattedEvent)
       return formattedEvent
     }) || []
   )
 }
 
 export default function Schedule() {
-  const { data: events, isLoading, error } = useGetEventsQuery()
+  const { data: events, isLoading } = useGetEventsQuery()
   const { mutate: createEvent } = useCreateEventMutation()
+  const { mutate: updateEvent } = useUpdateEventMutation()
+  const { data: teamMembers, isLoading: isLoadingProjects } = useAllParticipantsInUserProjects()
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newEvent, setNewEvent] = useState({
@@ -86,8 +84,13 @@ export default function Schedule() {
   })
   const [selectedView, setSelectedView] = useState('dayGridMonth')
   const [selectedEventType, setSelectedEventType] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPriority, setSelectedPriority] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [sortBy, setSortBy] = useState<'title-asc' | 'title-desc' | 'time-asc' | 'time-desc'>('time-asc')
+  const [eventSearchQuery, setEventSearchQuery] = useState('')
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const router = useRouter()
   const handleDateSelect = (selectInfo: any) => {
     setSelectedDate(selectInfo.start)
     setIsDialogOpen(true)
@@ -95,7 +98,15 @@ export default function Schedule() {
 
   const handleEventAdd = () => {
     if (newEvent.title && newEvent.start_date && newEvent.end_date) {
-      createEvent(newEvent as NewEventType, {
+      // Convert string dates to Date objects for reminders
+      const eventToCreate = {
+        ...newEvent,
+        reminders: newEvent.reminders.map((reminder) => ({
+          ...reminder,
+          time: new Date(reminder.time)
+        }))
+      }
+      createEvent(eventToCreate as NewEventType, {
         onSuccess: () => {
           setNewEvent({
             title: '',
@@ -115,6 +126,34 @@ export default function Schedule() {
     }
   }
 
+  const handleEventDrop = (info: any) => {
+    const droppedEvent = info.event
+
+    const eventUpdateData: Partial<NewEventType> = {
+      start_date: droppedEvent.start.toISOString(),
+      end_date: droppedEvent.end.toISOString()
+    }
+
+    updateEvent({
+      eventId: droppedEvent.id,
+      eventUpdateData
+    })
+  }
+
+  const handleEventResize = (info: any) => {
+    const resizedEvent = info.event
+
+    const eventUpdateData: Partial<NewEventType> = {
+      start_date: resizedEvent.start.toISOString(),
+      end_date: resizedEvent.end.toISOString()
+    }
+
+    updateEvent({
+      eventId: resizedEvent.id,
+      eventUpdateData
+    })
+  }
+
   const handleMemberAssignment = (memberId: string) => {
     setNewEvent((prev) => ({
       ...prev,
@@ -124,28 +163,29 @@ export default function Schedule() {
     }))
   }
 
-  // Update the filteredEvents calculation with proper type checking and logging
+  // Update the filteredEvents calculation
   const filteredEvents = React.useMemo(() => {
-    console.log('Filtering events:', events)
     if (!Array.isArray(events)) {
-      console.log('Events is not an array')
       return []
     }
-    const formatted =
-      selectedEventType === 'all'
-        ? formatEventsForCalendar(events)
-        : formatEventsForCalendar(events.filter((event) => event.type === selectedEventType))
-    console.log('Filtered and formatted events:', formatted)
-    return formatted
-  }, [events, selectedEventType])
+    const filtered = events.filter((event) => {
+      const matchesType = selectedEventType === 'all' || event.type === selectedEventType
+      const matchesPriority = selectedPriority === 'all' || event.priority === selectedPriority
+      const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory
+      return matchesType && matchesPriority && matchesCategory
+    })
+    return formatEventsForCalendar(filtered)
+  }, [events, selectedEventType, selectedPriority, selectedCategory])
 
-  const filteredTeamMembers = teamMembers.filter((member) =>
-    member.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTeamMembers = teamMembers?.filter((member: Member) =>
+    member.username.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Add these logs before returning the JSX
-  console.log('Original events:', events)
-  console.log('Formatted events for calendar:', filteredEvents)
+  const handleEventClick = (clickInfo: any) => {
+    const eventId = clickInfo.event.id
+    // Chuyển hướng đến trang chi tiết event
+    window.location.href = `/dashboard/schedule/${eventId}`
+  }
 
   if (isLoading) {
     return <div>Loading...</div>
@@ -156,15 +196,43 @@ export default function Schedule() {
       <header className='flex justify-between items-center'>
         <h1 className='text-3xl font-bold'>Team Schedule</h1>
         <div className='flex space-x-4'>
+          <Select value={selectedPriority} onValueChange={setSelectedPriority}>
+            <SelectTrigger className='w-[180px]'>
+              <SelectValue placeholder='Filter by priority' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All Priorities</SelectItem>
+              <SelectItem value='Low'>Low</SelectItem>
+              <SelectItem value='Medium'>Medium</SelectItem>
+              <SelectItem value='High'>High</SelectItem>
+              <SelectItem value='Urgent'>Urgent</SelectItem>
+              <SelectItem value='No_Priority'>No Priority</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={selectedEventType} onValueChange={setSelectedEventType}>
             <SelectTrigger className='w-[180px]'>
               <SelectValue placeholder='Filter by type' />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='all'>All Events</SelectItem>
-              <SelectItem value='meeting'>Meetings</SelectItem>
-              <SelectItem value='deadline'>Deadlines</SelectItem>
-              <SelectItem value='event'>Events</SelectItem>
+              <SelectItem value='Meeting'>Meetings</SelectItem>
+              <SelectItem value='Deadline'>Deadlines</SelectItem>
+              <SelectItem value='Event'>Events</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className='w-[180px]'>
+              <SelectValue placeholder='Filter by category' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All Categories</SelectItem>
+              <SelectItem value='Work'>Work</SelectItem>
+              <SelectItem value='Personal'>Personal</SelectItem>
+              <SelectItem value='School'>School</SelectItem>
+              <SelectItem value='Others'>Others</SelectItem>
+              <SelectItem value='No_Category'>No Category</SelectItem>
             </SelectContent>
           </Select>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -312,82 +380,24 @@ export default function Schedule() {
                   </div>
                   <div className='col-span-3 space-y-2'>
                     <ScrollArea className='h-[200px] rounded-md border p-2'>
-                      {filteredTeamMembers.map((member) => (
-                        <div key={member.id} className='flex items-center space-x-2 py-2'>
+                      {filteredTeamMembers?.map((member: Member) => (
+                        <div key={member._id} className='flex items-center space-x-2 py-2'>
                           <Checkbox
-                            id={`member-${member.id}`}
-                            checked={newEvent.assignees.includes(member.id)}
-                            onCheckedChange={() => handleMemberAssignment(member.id)}
+                            id={`member-${member._id}`}
+                            checked={newEvent.assignees.includes(member._id)}
+                            onCheckedChange={() => handleMemberAssignment(member._id)}
                           />
-                          <Label htmlFor={`member-${member.id}`} className='flex items-center space-x-2'>
+                          <Label htmlFor={`member-${member._id}`} className='flex items-center space-x-2'>
                             <Avatar className='h-6 w-6'>
-                              <AvatarImage src={member.avatar} alt={member.name} />
-                              <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                              <AvatarImage src={member.avatar_url} alt={member.username} />
+                              <AvatarFallback>{member.username.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <span>{member.name}</span>
+                            <span>{member.username}</span>
                           </Label>
                         </div>
                       ))}
                     </ScrollArea>
                   </div>
-                </div>
-              </div>
-
-              {/* Add Reminders Section - Moved outside the flex container */}
-              <div className='mt-6'>
-                <Label className='text-right mb-2 block'>Reminders</Label>
-                <div className='space-y-4'>
-                  {newEvent.reminders.map((reminder, index) => (
-                    <div key={index} className='flex items-center gap-4'>
-                      <Input
-                        type='datetime-local'
-                        value={reminder.time}
-                        onChange={(e) => {
-                          const updatedReminders = [...newEvent.reminders]
-                          updatedReminders[index] = { ...reminder, time: e.target.value }
-                          setNewEvent({ ...newEvent, reminders: updatedReminders })
-                        }}
-                        className='flex-1'
-                      />
-                      <Select
-                        value={reminder.type}
-                        onValueChange={(value: 'Email' | 'Notification') => {
-                          const updatedReminders = [...newEvent.reminders]
-                          updatedReminders[index] = { ...reminder, type: value }
-                          setNewEvent({ ...newEvent, reminders: updatedReminders })
-                        }}
-                      >
-                        <SelectTrigger className='w-[140px]'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='Email'>Email</SelectItem>
-                          <SelectItem value='Notification'>Notification</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant='outline'
-                        size='icon'
-                        onClick={() => {
-                          const updatedReminders = newEvent.reminders.filter((_, i) => i !== index)
-                          setNewEvent({ ...newEvent, reminders: updatedReminders })
-                        }}
-                      >
-                        ×
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    variant='outline'
-                    onClick={() => {
-                      setNewEvent({
-                        ...newEvent,
-                        reminders: [...newEvent.reminders, { time: '', type: 'Notification' }]
-                      })
-                    }}
-                  >
-                    Add Reminder
-                  </Button>
                 </div>
               </div>
               <DialogFooter>
@@ -428,6 +438,10 @@ export default function Schedule() {
                 height='auto'
                 slotMinTime='00:00:00'
                 slotMaxTime='24:00:00'
+                eventDrop={handleEventDrop}
+                eventResize={handleEventResize}
+                droppable={true}
+                eventClick={handleEventClick}
               />
             </CardContent>
           </Card>
@@ -437,56 +451,110 @@ export default function Schedule() {
             <CardHeader>
               <CardTitle>Upcoming Events</CardTitle>
               <CardDescription>Your team's schedule for the next few days</CardDescription>
+              <div className='flex items-center gap-4 mt-4'>
+                <div className='flex-1'>
+                  <div className='relative'>
+                    <Search className='absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground' />
+                    <Input
+                      placeholder='Search events...'
+                      value={eventSearchQuery}
+                      onChange={(e) => setEventSearchQuery(e.target.value)}
+                      className='pl-8'
+                    />
+                  </div>
+                </div>
+                <Select value={sortBy} onValueChange={(value: typeof sortBy) => setSortBy(value)}>
+                  <SelectTrigger className='w-[180px]'>
+                    <SelectValue placeholder='Sort by...' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='title-asc'>Title (A-Z)</SelectItem>
+                    <SelectItem value='title-desc'>Title (Z-A)</SelectItem>
+                    <SelectItem value='time-asc'>Time (Earliest)</SelectItem>
+                    <SelectItem value='time-desc'>Time (Latest)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               <div className='space-y-4'>
-                <h2 className='text-2xl font-bold'>Upcoming Events</h2>
                 {Array.isArray(events) && events.length > 0 ? (
-                  events.map((event) => (
-                    <Card key={event._id}>
-                      <CardContent className='p-6'>
-                        <div className='flex justify-between items-start'>
-                          <div>
-                            <h3 className='text-xl font-semibold'>{event.title}</h3>
-                            <p className='text-gray-600'>{event.description}</p>
+                  events
+                    .filter((event) => {
+                      const matchesType = selectedEventType === 'all' || event.type === selectedEventType
+                      const matchesPriority = selectedPriority === 'all' || event.priority === selectedPriority
+                      const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory
+                      const matchesSearch =
+                        event.title.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
+                        event.description?.toLowerCase().includes(eventSearchQuery.toLowerCase())
+                      return matchesType && matchesPriority && matchesCategory && matchesSearch
+                    })
+                    .sort((a, b) => {
+                      switch (sortBy) {
+                        case 'title-asc':
+                          return a.title.localeCompare(b.title)
+                        case 'title-desc':
+                          return b.title.localeCompare(a.title)
+                        case 'time-asc':
+                          return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+                        case 'time-desc':
+                          return new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+                        default:
+                          return 0
+                      }
+                    })
+                    .map((event) => (
+                      <Card
+                        key={event._id}
+                        onClick={() => router.push(`/dashboard/schedule/${event._id}`)}
+                        className='transition-all duration-200 hover:shadow-md hover:scale-[1.01] cursor-pointer'
+                      >
+                        <CardContent className='p-6'>
+                          <div className='flex justify-between items-start'>
+                            <div>
+                              <h3 className='text-xl font-semibold group-hover:text-primary transition-colors'>
+                                {event.title}
+                              </h3>
+                              <p className='text-gray-600'>{event.description}</p>
 
-                            <div className='mt-2 space-y-1'>
-                              <div className='flex items-center gap-2'>
-                                <span className='font-medium'>Time:</span>
-                                <span>
-                                  {format(new Date(event.start_date), 'PPp')} -{format(new Date(event.end_date), 'PPp')}
-                                </span>
-                              </div>
+                              <div className='mt-2 space-y-1'>
+                                <div className='flex items-center gap-2'>
+                                  <span className='font-medium'>Time:</span>
+                                  <span>
+                                    {format(new Date(event.start_date), 'PPp')} -
+                                    {format(new Date(event.end_date), 'PPp')}
+                                  </span>
+                                </div>
 
-                              <div className='flex items-center gap-2'>
-                                <span className='font-medium'>Location:</span>
-                                <span>{event.location}</span>
-                              </div>
-                            </div>
-
-                            <div className='mt-3 flex gap-2'>
-                              <Badge variant={getPriorityVariant(event.priority)}>{event.priority}</Badge>
-                              <Badge variant='outline'>{event.type}</Badge>
-                              <Badge variant='secondary'>{event.category}</Badge>
-                            </div>
-
-                            {event.reminders && event.reminders.length > 0 && (
-                              <div className='mt-3'>
-                                <span className='font-medium'>Reminders:</span>
-                                <div className='flex gap-2 mt-1'>
-                                  {event.reminders.map((reminder, index) => (
-                                    <Badge key={index} variant='outline'>
-                                      {reminder.type} at {format(new Date(reminder.time), 'PPp')}
-                                    </Badge>
-                                  ))}
+                                <div className='flex items-center gap-2'>
+                                  <span className='font-medium'>Location:</span>
+                                  <span>{event.location}</span>
                                 </div>
                               </div>
-                            )}
+
+                              <div className='mt-3 flex gap-2'>
+                                <Badge variant={getPriorityVariant(event.priority)}>{event.priority}</Badge>
+                                <Badge variant='outline'>{event.type}</Badge>
+                                <Badge variant='secondary'>{event.category}</Badge>
+                              </div>
+
+                              {event.reminders && event.reminders.length > 0 && (
+                                <div className='mt-3'>
+                                  <span className='font-medium'>Reminders:</span>
+                                  <div className='flex gap-2 mt-1'>
+                                    {event.reminders.map((reminder, index) => (
+                                      <Badge key={index} variant='outline'>
+                                        {reminder.type} at {format(new Date(reminder.time), 'PPp')}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                        </CardContent>
+                      </Card>
+                    ))
                 ) : (
                   <p>No upcoming events</p>
                 )}
@@ -514,7 +582,7 @@ function renderEventContent(eventInfo: any) {
 function getEventColor(type: string) {
   switch (type) {
     case 'Meeting':
-      return 'bg-blue-500'
+      return 'bg-cyan-500'
     case 'Deadline':
       return 'bg-red-500'
     case 'Event':
@@ -525,15 +593,16 @@ function getEventColor(type: string) {
       return 'bg-gray-500'
   }
 }
-function getPriorityVariant(priority: string) {
-  switch (priority) {
-    case 'High':
-      return 'destructive'
-    case 'Medium':
-      return 'secondary'
-    case 'Low':
-      return 'default'
-    case 'Urgent':
+
+export function getPriorityVariant(priority: string) {
+  switch (priority.toLowerCase()) {
+    case 'low':
+      return 'outline'
+    case 'medium':
+      return 'warning'
+    case 'high':
+      return 'orange'
+    case 'urgent':
       return 'destructive'
     default:
       return 'default'

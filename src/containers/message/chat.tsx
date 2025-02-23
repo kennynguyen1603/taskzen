@@ -30,7 +30,6 @@ export function Chat() {
   const socket = useSocket()
   const { user } = useContext(UserContext) || {}
 
-  // Set conversation_id khi component mount
   useEffect(() => {
     if (conversation_id) {
       setCurrentConversationId(conversation_id as string)
