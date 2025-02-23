@@ -1,5 +1,7 @@
 'use client'
 
+import type React from 'react'
+
 import { useState, useCallback, useContext, useEffect } from 'react'
 import type { NewProject, User, ResProject, ResParticipant } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
@@ -18,7 +20,6 @@ import {
   useDeleteProjectMutation,
   useGetProjectsMutation,
   useRemoveProjectParticipantMutation,
-  useUpdateParticipantRoleMutation,
   useUpdateProjectMutation
 } from '@/queries/useProject'
 import { getFilteredProjects, useProjectStore } from '@/hooks/use-project-store'
@@ -29,9 +30,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { motion } from 'framer-motion'
 import { AnimatedTooltip } from '@/components/ui/animated-tooltip'
-import { UpdateProjectBodyType } from '@/schema-validations/project.schema'
+import type { UpdateProjectBodyType } from '@/schema-validations/project.schema'
 import { useRouter } from 'nextjs-toploader/app'
 import { ManageTeamDialog } from '@/containers/project/manage-team-dialog'
+import { ViewToggle } from '@/containers/project/projects-view-toggle'
+import { ProjectsListView } from '@/containers/project/projects-list-view'
 
 export default function Projects() {
   const router = useRouter()
@@ -79,6 +82,7 @@ export default function Projects() {
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<ResProject | null>(null)
   const [isManageTeamDialogOpen, setIsManageTeamDialogOpen] = useState(false)
+  const [view, setView] = useState<'grid' | 'list'>('grid')
 
   const { data: projectsData, isLoading: isLoadingProjects } = useQuery({
     queryKey: ['projects'],
@@ -471,14 +475,15 @@ export default function Projects() {
   }
 
   return (
-    <div className='container p-8'>
-      <div className='flex justify-between items-center mb-8'>
+    <div className='container p-4 md:p-8'>
+      <div className='flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8'>
         <div>
-          <h1 className='text-4xl font-bold text-foreground'>Projects</h1>
+          <h1 className='text-3xl md:text-4xl font-bold text-foreground'>Projects</h1>
           <p className='text-muted-foreground mt-1'>Manage and track all your projects</p>
         </div>
-        <div className='flex items-center gap-4'>
-          <div className='relative w-64'>
+        <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-4'>
+          <ViewToggle view={view} onViewChange={setView} />
+          <div className='relative w-full sm:w-64'>
             <Search className='absolute left-2 top-2.5 h-4 w-4 text-muted-foreground' />
             <Input
               placeholder='Search projects...'
@@ -487,13 +492,9 @@ export default function Projects() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          {/* <Button
-            onClick={() => setIsNewProjectDialogOpen(true)}
-            className="bg-gradient-to-r from-primary to-primary-foreground hover:opacity-90 transition-opacity"
-          > */}
           <Button
             onClick={() => setIsNewProjectDialogOpen(true)}
-            className='bg-primary hover:bg-primary/90 text-primary-foreground'
+            className='bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap'
           >
             <Plus className='mr-2 h-4 w-4' /> New Project
           </Button>
@@ -501,112 +502,124 @@ export default function Projects() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className='mb-8'>
-        <TabsList className='bg-background border'>
+        <TabsList className='bg-background border w-full md:w-auto'>
           <TabsTrigger
             value='all'
-            className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
+            className='flex-1 md:flex-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
           >
             All Projects
           </TabsTrigger>
           <TabsTrigger
             value='my_projects'
-            className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
+            className='flex-1 md:flex-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
           >
             My Projects
           </TabsTrigger>
           <TabsTrigger
             value='archived'
-            className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
+            className='flex-1 md:flex-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
           >
             Archived
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {filteredProjects.map((project) => (
-          <motion.div
-            key={project._id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card
-              className='group hover:shadow-lg transition-all duration-300 border-none bg-gradient-to-br from-card to-background dark:from-gray-800 dark:to-gray-900 overflow-hidden'
-              onClick={(e) => {
-                setSelectedProject(project)
-                handleProjectClick(project._id, e)
-              }}
+      {view === 'grid' ? (
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
+          {filteredProjects.map((project) => (
+            <motion.div
+              key={project._id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <CardHeader className='space-y-4 relative'>
-                <div className='absolute top-0 right-0 mt-4 mr-4'>{renderProjectDropdownMenu(project)}</div>
+              <Card
+                className='group hover:shadow-lg transition-all duration-300 border-none bg-gradient-to-br from-card to-background dark:from-gray-800 dark:to-gray-900 overflow-hidden'
+                onClick={(e) => {
+                  setSelectedProject(project)
+                  handleProjectClick(project._id, e)
+                }}
+              >
+                <CardHeader className='space-y-4 relative p-4 md:p-6'>
+                  <div className='absolute top-0 right-0 mt-4 mr-4'>{renderProjectDropdownMenu(project)}</div>
 
-                <div className='space-y-2'>
-                  <div className='flex items-center gap-2'>
-                    <Badge variant='outline' className='bg-primary/10 text-primary'>
-                      {project.key}
-                    </Badge>
-                    {project.hasBeenModified && (
-                      <Badge variant='secondary' className='animate-pulse'>
-                        Modified
+                  <div className='space-y-2'>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <Badge variant='outline' className='bg-primary/10 text-primary'>
+                        {project.key}
                       </Badge>
-                    )}
+                      {project.hasBeenModified && (
+                        <Badge variant='secondary' className='animate-pulse'>
+                          Modified
+                        </Badge>
+                      )}
+                    </div>
+                    <CardTitle className='text-xl md:text-2xl font-bold group-hover:text-primary transition-colors line-clamp-2'>
+                      {project.title}
+                    </CardTitle>
                   </div>
-                  <CardTitle className='text-2xl font-bold group-hover:text-primary transition-colors'>
-                    {project.title}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className='line-clamp-3 min-h-[4.5em] text-muted-foreground'>
-                  {project.description || 'No description provided'}
-                </CardDescription>
-              </CardContent>
-              <CardFooter className='flex justify-between items-center pt-4 border-t'>
-                <div className='flex items-center space-x-2 text-sm text-muted-foreground'>
-                  <Calendar className='h-4 w-4' />
-                  <span>{new Date(project.created_at).toLocaleDateString()}</span>
-                </div>
-                <div className='flex items-center space-x-2'>
-                  <div className='flex -space-x-2'>
-                    {project.participants?.length > 0 && (
-                      <div className='flex items-center space-x-2'>
-                        <AnimatedTooltip
-                          items={project.participants.map((participant: ResParticipant) => ({
-                            id: `${project._id}-${participant._id}`,
-                            name: participant.username || 'Unknown',
-                            designation: participant.role || 'staff',
-                            image:
-                              participant.avatar_url ||
-                              'https://static-00.iconduck.com/assets.00/avatar-default-symbolic-icon-479x512-n8sg74wg.png'
-                          }))}
-                        />
-                      </div>
-                    )}
+                </CardHeader>
+                <CardContent className='p-4 md:p-6'>
+                  <CardDescription className='line-clamp-3 min-h-[4.5em] text-muted-foreground'>
+                    {project.description || 'No description provided'}
+                  </CardDescription>
+                </CardContent>
+                <CardFooter className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 p-4 md:p-6 border-t'>
+                  <div className='flex items-center space-x-2 text-sm text-muted-foreground'>
+                    <Calendar className='h-4 w-4' />
+                    <span>{new Date(project.created_at).toLocaleDateString()}</span>
                   </div>
-                  <Button
-                    variant='outline'
-                    size='icon'
-                    className='rounded-full hover:bg-primary hover:text-primary-foreground transition-colors ml-2'
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedProject(project)
-                      setIsInviteDialogOpen(true)
-                    }}
-                  >
-                    <Users className='h-4 w-4' />
-                  </Button>
-                </div>
-              </CardFooter>
-              <div className='absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity'>
-                <Button variant='ghost' size='icon' className='rounded-full hover:bg-primary/10'>
-                  <ArrowUpRight className='h-4 w-4' />
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+                  <div className='flex items-center space-x-2 w-full sm:w-auto'>
+                    <div className='flex -space-x-2 flex-1 sm:flex-none'>
+                      {project.participants?.length > 0 && (
+                        <div className='flex items-center space-x-2'>
+                          <AnimatedTooltip
+                            items={project.participants.map((participant: ResParticipant) => ({
+                              id: `${project._id}-${participant._id}`,
+                              name: participant.username || 'Unknown',
+                              designation: participant.role || 'staff',
+                              image:
+                                participant.avatar_url ||
+                                'https://static-00.iconduck.com/assets.00/avatar-default-symbolic-icon-479x512-n8sg74wg.png'
+                            }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant='outline'
+                      size='icon'
+                      className='rounded-full hover:bg-primary hover:text-primary-foreground transition-colors ml-2'
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedProject(project)
+                        setIsInviteDialogOpen(true)
+                      }}
+                    >
+                      <Users className='h-4 w-4' />
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <ProjectsListView
+          projects={filteredProjects}
+          onSort={(field) => {
+            const sorted = [...filteredProjects].sort((a, b) => {
+              if (field === 'leader') {
+                const leaderA = a.participants.find((p) => p.role === 'leader')?.username || ''
+                const leaderB = b.participants.find((p) => p.role === 'leader')?.username || ''
+                return leaderA.localeCompare(leaderB)
+              }
+              return a[field as keyof ResProject] > b[field as keyof ResProject] ? 1 : -1
+            })
+            setProjects(sorted)
+          }}
+        />
+      )}
 
       <Dialog
         open={isNewProjectDialogOpen}
@@ -618,7 +631,7 @@ export default function Projects() {
           setIsNewProjectDialogOpen(open)
         }}
       >
-        <DialogContent className='sm:max-w-[525px]'>
+        <DialogContent className='sm:max-w-[525px] w-[95vw] max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
             <p id='dialog-description'>Fill in the details below to create a new project.</p>
