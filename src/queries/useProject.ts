@@ -1,6 +1,6 @@
 import projectApiRequest from '@/api-requests/project'
 import { CreateProjectBodyType, UpdateProjectBodyType } from '@/schema-validations/project.schema'
-import { useMutation, useInfiniteQuery } from '@tanstack/react-query'
+import { useMutation, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 
 export const useGetProjectsMutation = () => {
   return useMutation({
@@ -63,3 +63,12 @@ export const useGetActivitiesQuery = (projectId: string) => {
   })
 }
 
+export const useAllParticipantsInUserProjects = () => {
+  return useQuery({
+    queryKey: ['allParticipantsInUserProjects'],
+    queryFn: async () => {
+      const response = await projectApiRequest.sGetAllParticipantsInUserProjects()
+      return response.payload.metadata
+    }
+  })
+}
