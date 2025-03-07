@@ -19,6 +19,18 @@ import { useGetMeMutation } from '@/queries/useAccount'
 import { useAppStore } from '@/provider/app-provider'
 import Logout from './logout'
 import { useSearchParamsLoader } from '@/components/search-params-loader'
+import { TypewriterEffectSmooth } from '@/components/ui/typewriter-effect'
+
+const words = [
+  {
+    text: 'Welcome To',
+    className: 'text-white'
+  },
+  {
+    text: 'Task Zen',
+    className: 'text-blue-500 dark:text-blue-500'
+  }
+]
 
 export default function LoginPage() {
   const loginMutation = useLoginMutation()
@@ -73,7 +85,8 @@ export default function LoginPage() {
       <TechBackground />
       <div className='lg:flex-1 flex flex-col justify-center p-10 lg:p-20'>
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <h1 className='text-4xl lg:text-6xl font-bold text-white mb-6 drop-shadow-lg'>Welcome to TaskZen</h1>
+          {/* <h1 className='text-4xl lg:text-6xl font-bold text-white mb-6 drop-shadow-lg'>Welcome to TaskZen</h1> */}
+          <TypewriterEffectSmooth words={words} />
           <p className='text-xl text-white mb-8 drop-shadow-md'>
             Streamline your workflow, boost productivity, and achieve more with our intuitive task management platform.
           </p>
