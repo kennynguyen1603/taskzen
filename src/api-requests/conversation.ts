@@ -12,14 +12,14 @@ const conversationApiRequest = {
     }),
 
   sGetAllConversations: (access_token: string) =>
-    http.get<ConversationResponseType>('/api/v1/conversation', {
+    http.get<ConversationResponseType>('/conversations', {
       headers: {
         Authorization: `Bearer ${access_token}`
       }
     }),
 
   getConversationById: (conversationId: string) =>
-    http.get<ConversationResponseType>(`/api/v1/conversation/${conversationId}`),
+    http.get<ConversationResponseType>(`/conversations/${conversationId}`),
 
   creatNewGroup: (body: CreateConversationBodyType) =>
     http.post<CreateConversationResponseType>('api/conversation/newGroup', body, {
@@ -27,7 +27,7 @@ const conversationApiRequest = {
     }),
 
   sCreatNewGroup: ({ body, access_token }: { body: CreateConversationBodyType; access_token: string }) =>
-    http.post<CreateConversationResponseType>('/api/v1/conversation/group', body, {
+    http.post<CreateConversationResponseType>('/conversations/group', body, {
       headers: {
         Authorization: `Bearer ${access_token}`
       }

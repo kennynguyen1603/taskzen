@@ -3,9 +3,9 @@ import { NewMessageType, NewMessageResponseType, MessageResponseType } from '@/s
 
 const messageApiRequest = {
   newMessage: (conversationId: string, body: NewMessageType) =>
-    http.post<NewMessageResponseType>(`/conversation/${conversationId}/messages`, body),
+    http.post<NewMessageResponseType>(`/conversations/${conversationId}/messages`, body),
 
   getMessages: (conversationId: string) =>
-    http.get<MessageResponseType>(`/conversation/${conversationId}/messages`)
+    http.get<MessageResponseType>(`/conversations/${conversationId}/messages`)
 }
 export default messageApiRequest
