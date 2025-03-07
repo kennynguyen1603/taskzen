@@ -12,6 +12,22 @@ import { TechBackground } from '@/components/auth/tech-background'
 import { RegisterBodyType } from '@/schema-validations/auth.schema'
 import { useRegisterMutation } from '@/queries/useAuth'
 import { handleErrorApi } from '@/lib/utils'
+import { TypewriterEffectSmooth } from '@/components/ui/typewriter-effect'
+
+const words = [
+  {
+    text: 'Join',
+    className: 'text-white'
+  },
+  {
+    text: 'Task Zen',
+    className: 'text-blue-500 dark:text-blue-500'
+  },
+  {
+    text: 'Today',
+    className: 'text-white'
+  }
+]
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -22,7 +38,9 @@ export default function SignUpPage() {
     try {
       const res = await registerMutation.mutateAsync(data)
       toast({
-        description: res.payload.message
+        title: 'Success',
+        description: res.payload.message,
+        variant: 'default'
       })
       router.push('/login')
     } catch (error: any) {
@@ -38,9 +56,10 @@ export default function SignUpPage() {
       <TechBackground />
       <div className='lg:flex-1 flex flex-col justify-center p-10 lg:p-20'>
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <h1 className='text-4xl lg:text-6xl font-bold text-white mb-6 drop-shadow-lg'>Join TaskZen Today</h1>
+          {/* <h1 className='text-4xl lg:text-6xl font-bold text-white mb-6 drop-shadow-lg'>Join TaskZen Today</h1> */}
+          <TypewriterEffectSmooth words={words} />
           <p className='text-xl text-white mb-8 drop-shadow-md'>
-            Start your journey to enhanced productivity and seamless task management.
+            Start your journey to enhanced productivity and seamless project management.
           </p>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-8'>
             <FeatureCard

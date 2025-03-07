@@ -5,16 +5,25 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { User, Mail, Lock, Calendar, Image, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react'
+import { User, Mail, Lock, Calendar, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react'
+import { FileUpload } from '@/components/ui/file-upload'
 
+// Schema xác thực sử dụng Zod
 const signUpSchema = z
   .object({
     email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: z
+      .string()
+      .min(6, 'Password must be at least 6 characters')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[0-9]/, 'Password must contain at least one number')
+      .regex(/[^a-zA-Z0-9]/, 'Password must contain at least one special character')
+      .trim(),
     confirm_password: z.string(),
     username: z.string().min(3, 'Username must be at least 3 characters'),
     date_of_birth: z.string(),
-    avatar_url: z.string().url().optional()
+    avatar_file: z.any().optional()
   })
   .refine((data) => data.password === data.confirm_password, {
     message: 'Passwords do not match',
@@ -32,31 +41,38 @@ export function SignUpForm({ onSubmit, isLoading }: SignUpFormProps) {
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     trigger,
-    watch,
+    setValue,
     setError
-  } = useForm<SignUpFormValues>({
-    resolver: zodResolver(signUpSchema)
-  })
+  } = useForm<SignUpFormValues>({ resolver: zodResolver(signUpSchema) })
 
   const nextStep = async () => {
     const fieldsToValidate = step === 1 ? ['email', 'password', 'confirm_password'] : ['username', 'date_of_birth']
-    const isStepValid = await trigger(fieldsToValidate as any)
+    const isStepValid = await trigger(fieldsToValidate as (keyof SignUpFormValues)[])
     if (isStepValid) setStep(step + 1)
   }
 
   const prevStep = () => setStep(step - 1)
+
+  // Nhận file từ FileUpload (chỉ duy nhất 1 file)
+  const handleFileChange = (file: File) => {
+    setUploadedFile(file)
+    setValue('avatar_file', file, { shouldValidate: true })
+  }
 
   const renderInput = (
     name: keyof SignUpFormValues,
     label: string,
     type: string,
     icon: React.ReactNode,
-    placeholder?: string
+    placeholder?: string,
+    isPassword?: boolean
   ) => (
     <div className='space-y-2'>
       <Label htmlFor={name} className='text-sm font-medium text-white drop-shadow-md'>
@@ -66,20 +82,36 @@ export function SignUpForm({ onSubmit, isLoading }: SignUpFormProps) {
         <div className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400'>{icon}</div>
         <Input
           id={name}
-          type={type}
+          type={
+            isPassword
+              ? name === 'password'
+                ? showPassword
+                  ? 'text'
+                  : 'password'
+                : showConfirmPassword
+                ? 'text'
+                : 'password'
+              : type
+          }
           {...register(name)}
           placeholder={placeholder}
           className='pl-10 h-12 bg-white/30 border-white/50 text-white placeholder-gray-300 focus:border-white focus:ring-white shadow-sm w-full'
         />
-        {type === 'password' && (
+        {isPassword && (
           <button
             type='button'
+            className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400'
             onClick={() =>
               name === 'password' ? setShowPassword(!showPassword) : setShowConfirmPassword(!showConfirmPassword)
             }
-            className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400'
           >
-            {(name === 'password' ? showPassword : showConfirmPassword) ? (
+            {name === 'password' ? (
+              showPassword ? (
+                <EyeOff className='h-5 w-5' />
+              ) : (
+                <Eye className='h-5 w-5' />
+              )
+            ) : showConfirmPassword ? (
               <EyeOff className='h-5 w-5' />
             ) : (
               <Eye className='h-5 w-5' />
@@ -87,44 +119,34 @@ export function SignUpForm({ onSubmit, isLoading }: SignUpFormProps) {
           </button>
         )}
       </div>
-      {errors[name] && <p className='text-red-200 text-sm mt-1 drop-shadow-md'>{errors[name]?.message}</p>}
+      {errors[name] && <p className='text-red-200 text-sm mt-1 drop-shadow-md'>{errors[name]?.message?.toString()}</p>}
     </div>
   )
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit(data, setError))} className='space-y-4'>
+    <form
+      onSubmit={handleSubmit((data) => onSubmit({ ...data, avatar_file: uploadedFile }, setError))}
+      className='space-y-4'
+    >
       {step === 1 && (
         <>
           {renderInput('email', 'Email', 'email', <Mail className='h-5 w-5' />, 'name@example.com')}
-          {renderInput('password', 'Password', showPassword ? 'text' : 'password', <Lock className='h-5 w-5' />)}
-          {renderInput(
-            'confirm_password',
-            'Confirm Password',
-            showConfirmPassword ? 'text' : 'password',
-            <Lock className='h-5 w-5' />
-          )}
+          {renderInput('password', 'Password', 'password', <Lock className='h-5 w-5' />, '', true)}
+          {renderInput('confirm_password', 'Confirm Password', 'password', <Lock className='h-5 w-5' />, '', true)}
         </>
       )}
-
       {step === 2 && (
         <>
           {renderInput('username', 'Username', 'text', <User className='h-5 w-5' />, 'johndoe')}
           {renderInput('date_of_birth', 'Date of Birth', 'date', <Calendar className='h-5 w-5' />)}
         </>
       )}
-
       {step === 3 && (
         <>
-          {renderInput(
-            'avatar_url',
-            'Avatar URL (optional)',
-            'url',
-            <Image className='h-5 w-5' />,
-            'https://example.com/avatar.jpg'
-          )}
+          <Label className='text-sm font-medium text-white drop-shadow-md'>Avatar (optional)</Label>
+          <FileUpload onChange={handleFileChange} />
         </>
       )}
-
       <div className='flex justify-between mt-6'>
         {step > 1 && (
           <Button type='button' onClick={prevStep} className='bg-white/30 hover:bg-white/40 text-white'>
@@ -137,18 +159,7 @@ export function SignUpForm({ onSubmit, isLoading }: SignUpFormProps) {
           </Button>
         ) : (
           <Button type='submit' disabled={isLoading} className='bg-white hover:bg-white/90 text-blue-600 ml-auto'>
-            {isLoading ? (
-              <svg className='animate-spin h-5 w-5 mr-3' viewBox='0 0 24 24'>
-                <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-                <path
-                  className='opacity-75'
-                  fill='currentColor'
-                  d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-                ></path>
-              </svg>
-            ) : (
-              'Sign Up'
-            )}
+            {isLoading ? 'Signing Up...' : 'Sign Up'}
           </Button>
         )}
       </div>
