@@ -62,7 +62,7 @@ const request = async <Response>(
   url: string,
   options?: CustomOptions | undefined
 ) => {
-  console.log('Starting request:', { method, url, options });
+  // console.log('Starting request:', { method, url, options });
 
   let body: FormData | string | undefined = undefined;
   if (options?.body) {
@@ -73,7 +73,7 @@ const request = async <Response>(
     }
   }
 
-  console.log('Request body:', body);
+  // console.log('Request body:', body);
 
   const baseHeaders: { [key: string]: string } =
     body instanceof FormData
@@ -99,7 +99,7 @@ const request = async <Response>(
   const baseUrl = options?.baseUrl === undefined ? envConfig.NEXT_PUBLIC_API_ENDPOINT : options.baseUrl;
   const fullUrl = `${baseUrl}/${normalizePath(url)}`;
 
-  console.log('Full URL:', fullUrl);
+  // console.log('Full URL:', fullUrl);
 
   const res = await fetch(fullUrl, {
     ...options,
