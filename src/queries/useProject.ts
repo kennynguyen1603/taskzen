@@ -1,50 +1,137 @@
 import projectApiRequest from '@/api-requests/project'
 import { CreateProjectBodyType, UpdateProjectBodyType } from '@/schema-validations/project.schema'
-import { useMutation, useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from '@/hooks/use-toast'
 
 export const useGetProjectsMutation = () => {
   return useMutation({
-    mutationFn: projectApiRequest.getAllProjectOfUser
+    mutationFn: projectApiRequest.getAllProjectOfUser,
+    // onSuccess: () => {
+    //   toast({
+    //     title: 'Projects loaded successfully'
+    //   })
+    // }
   })
 }
 
 export const useCreateProjectMutation = () => {
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: (params: { body: CreateProjectBodyType }) => projectApiRequest.sCreateProject(params.body)
+    mutationFn: (params: { body: CreateProjectBodyType }) => projectApiRequest.sCreateProject(params.body),
+    onSuccess: () => {
+      toast({
+        title: 'Project created successfully'
+      })
+      queryClient.invalidateQueries({ queryKey: ['allParticipantsInUserProjects'] })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to create project',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
 export const useUpdateProjectMutation = () => {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: (params: { projectId: string; body: UpdateProjectBodyType }) =>
-      projectApiRequest.sUpdateProject(params.projectId, params.body)
+      projectApiRequest.sUpdateProject(params.projectId, params.body),
+    onSuccess: () => {
+      toast({
+        title: 'Project updated successfully'
+      })
+      queryClient.invalidateQueries({ queryKey: ['allParticipantsInUserProjects'] })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to update project',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
 export const useDeleteProjectMutation = () => {
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: projectApiRequest.sDeleteProject
+    mutationFn: projectApiRequest.sDeleteProject,
+    onSuccess: () => {
+      toast({
+        title: 'Project deleted successfully'
+      })
+      queryClient.invalidateQueries({ queryKey: ['allParticipantsInUserProjects'] })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to delete project',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
 export const useUpdateParticipantRoleMutation = () => {
   return useMutation({
     mutationFn: (params: { projectId: string; body: { userId: string; role: string } }) =>
-      projectApiRequest.sUpdateParticipantRole(params.projectId, params.body)
+      projectApiRequest.sUpdateParticipantRole(params.projectId, params.body),
+    onSuccess: () => {
+      toast({
+        title: 'Participant role updated successfully'
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to update participant role',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
 export const useAddProjectParticipantMutation = () => {
   return useMutation({
     mutationFn: (params: { projectId: string; body: { userId: string; role: string } }) =>
-      projectApiRequest.sAddProjectParticipant(params.projectId, params.body)
+      projectApiRequest.sAddProjectParticipant(params.projectId, params.body),
+    onSuccess: () => {
+      toast({
+        title: 'Participant added successfully'
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to add participant',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
 export const useRemoveProjectParticipantMutation = () => {
   return useMutation({
     mutationFn: (params: { projectId: string; body: { userId: string } }) =>
-      projectApiRequest.sDeleteProjectParticipant(params.projectId, params.body)
+      projectApiRequest.sDeleteProjectParticipant(params.projectId, params.body),
+    onSuccess: () => {
+      toast({
+        title: 'Participant removed successfully'
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to remove participant',
+        description: error.response?.data?.message || 'An error occurred',
+        variant: 'destructive'
+      })
+    }
   })
 }
 
