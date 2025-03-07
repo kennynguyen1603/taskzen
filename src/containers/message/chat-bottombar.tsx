@@ -2,7 +2,7 @@ import { FileImage, Mic, Paperclip, PlusCircle, SendHorizontal, ThumbsUp } from 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
-import { EmojiPicker } from '@/components/ui/message/emoji-picker'
+// import { EmojiPicker } from '@/components/ui/message/emoji-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ChatInput } from '@/components/ui/message/chat-input'
 import { ConversationType } from '@/schema-validations/conversation.schema'
@@ -132,14 +132,6 @@ export default function ChatBottombar({ onSendMessage, isLoading, selectedUser }
             onKeyDown={handleKeyPress}
             onChange={handleInputChange}
             placeholder='Type a message...'
-          />
-          <EmojiPicker
-            onChange={(value) => {
-              setInput(input + value)
-              if (inputRef.current) {
-                inputRef.current.focus()
-              }
-            }}
           />
         </motion.div>
 

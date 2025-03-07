@@ -19,6 +19,7 @@ interface SidebarProps {
   isCollapsed: boolean
   chats: {
     id: string
+    participants: { name: string; avatar_url: string; announcement?: string }
     name: string
     variant: 'secondary' | 'ghost'
     is_group: boolean
@@ -43,6 +44,7 @@ const getOtherUserName = (conversationName: Record<string, string>, currentName:
 }
 
 export function Sidebar({ chats, isCollapsed, isMobile }: SidebarProps) {
+  console.log(chats)
   const { user } = useContext(UserContext) || {}
   const router = useRouter()
   const { setSelectedConversation, setCurrentConversationId } = useChatStore()
@@ -50,14 +52,15 @@ export function Sidebar({ chats, isCollapsed, isMobile }: SidebarProps) {
   const handleSelectConversation = (chat: {
     id: string
     name: string | Record<string, string>
+    participants: { name: string; avatar_url: string; announcement?: string }
     is_group: boolean
     currentUserId?: string
   }) => {
     const conversation = {
       _id: chat.id,
       participants: {
-        name: typeof chat.name === 'string' ? chat.name : getOtherUserName(chat.name, user?.username),
-        avatar_url: '',
+        name: chat.participants.name,
+        avatar_url: chat.participants.avatar_url,
         status: 'offline'
       },
       conversation_name: typeof chat.name === 'string' ? chat.name : getOtherUserName(chat.name, user?.username),
@@ -126,6 +129,7 @@ export function Sidebar({ chats, isCollapsed, isMobile }: SidebarProps) {
                       <Avatar className='flex justify-center items-center'>
                         <AvatarImage
                           src={
+                            `${chat.participants.avatar_url}` ||
                             'https://static.minhtuanmobile.com/uploads/editer/images/truyen-cam-hung-voi-hinh-nen-chu-chuot-dau-bep-17.webp'
                           }
                           alt='avatar'
@@ -175,6 +179,7 @@ export function Sidebar({ chats, isCollapsed, isMobile }: SidebarProps) {
                 <Avatar className='flex justify-center items-center'>
                   <AvatarImage
                     src={
+                      chat.participants.avatar_url ||
                       'https://static.minhtuanmobile.com/uploads/editer/images/truyen-cam-hung-voi-hinh-nen-chu-chuot-dau-bep-17.webp'
                     }
                     alt='avatar'
@@ -197,7 +202,9 @@ export function Sidebar({ chats, isCollapsed, isMobile }: SidebarProps) {
                     <div className='flex flex-row justify-between'>
                       <div className='flex items-center gap-2'>
                         <span>{chat.name}</span>
-                        {chat.is_group && <span className='bg-primary text-white text-xs rounded-sm px-1'>Group</span>}
+                        {chat.is_group && (
+                          <span className='bg-primary text-white dark:text-black text-xs rounded-sm px-1'>Group</span>
+                        )}
                       </div>
                     </div>
                   </div>

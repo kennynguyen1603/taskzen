@@ -37,8 +37,8 @@ export function ChatLayout({
     setSelectedConversation(conversation)
     try {
       const response = await messagesMutation.mutateAsync(conversation._id)
-      if (response.payload?.data) {
-        setMessages(response.payload.data as MessageResType[])
+      if (response.payload?.metadata) {
+        setMessages(response.payload.metadata as MessageResType[])
       }
       router.push(`/dashboard/message/${conversation._id}`)
     } catch (error) {
@@ -96,6 +96,7 @@ export function ChatLayout({
           chats={conversations.map((conversation) => ({
             id: conversation._id,
             name: conversation.conversation_name,
+            participants: conversation.participants,
             variant: selectedConversation?._id === conversation._id ? 'secondary' : 'ghost',
             is_group: conversation.is_group,
             currentUserId: user?._id,

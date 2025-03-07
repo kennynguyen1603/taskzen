@@ -32,6 +32,7 @@ export function Chat() {
 
   useEffect(() => {
     if (conversation_id) {
+      console.log('Setting current conversation:', conversation_id)
       setCurrentConversationId(conversation_id as string)
     }
   }, [conversation_id, setCurrentConversationId])
@@ -68,40 +69,40 @@ export function Chat() {
     }
   }, [messagesData?.payload?.metadata, setMessages])
 
+  const handleNewMessage = (data: any) => {
+    console.log('Socket received data:', data)
+    if (!data || !selectedConversation) return
+
+    if (data.conversation_id === selectedConversation._id) {
+      console.log('Message belongs to current conversation')
+
+      const messageData = data.message || data
+
+      const newMessage: MessageResType = {
+        _id: messageData._id || Date.now().toString(),
+        conversation_id: messageData.conversation_id,
+        message_content: messageData.message_content,
+        message_type: messageData.message_type || 'text',
+        sender: messageData.sender || {
+          _id: messageData.sender_id,
+          username: messageData.sender_username || '',
+          email: messageData.sender_email || '',
+          avatar_url: messageData.sender_avatar_url || ''
+        },
+        is_read: false,
+        read_by_users: [],
+        created_at: messageData.created_at || new Date().toISOString(),
+        updated_at: messageData.updated_at || new Date().toISOString()
+      }
+
+      console.log('Formatted new message:', newMessage)
+      addMessage(newMessage)
+    }
+  }
+
   // Xử lý socket events
   useEffect(() => {
     if (!socket || !selectedConversation) return
-
-    const handleNewMessage = (data: any) => {
-      console.log('Socket received data:', data)
-      if (!data || !selectedConversation) return
-
-      if (data.conversation_id === selectedConversation._id) {
-        console.log('Message belongs to current conversation')
-
-        const messageData = data.message || data
-
-        const newMessage: MessageResType = {
-          _id: messageData._id || Date.now().toString(),
-          conversation_id: messageData.conversation_id,
-          message_content: messageData.message_content,
-          message_type: messageData.message_type || 'text',
-          sender: messageData.sender || {
-            _id: messageData.sender_id,
-            username: messageData.sender_username || '',
-            email: messageData.sender_email || '',
-            avatar_url: messageData.sender_avatar_url || ''
-          },
-          is_read: false,
-          read_by_users: [],
-          created_at: messageData.created_at || new Date().toISOString(),
-          updated_at: messageData.updated_at || new Date().toISOString()
-        }
-
-        console.log('Formatted new message:', newMessage)
-        addMessage(newMessage)
-      }
-    }
 
     const joinConversation = () => {
       if (socket.connected) {
@@ -165,7 +166,6 @@ export function Chat() {
 
       // Emit socket event
       if (socket) {
-        console.log('Emitting socket message:', tempMessage)
         socket.emit('send_message', {
           ...tempMessage,
           sender_id: user._id,
