@@ -8,6 +8,8 @@ import { Features } from '@/containers/landing-page/features'
 // import { HeroParallaxLanding } from '@/containers/landing-page/hero-parallax'
 import { AIInsightsDashboard } from '@/containers/landing-page/ai-insights-dashboard'
 import Showcase from '@/containers/landing-page/showcase'
+import Aurora from '@/components/ui/aurora-background'
+import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision'
 
 export default function Home() {
   return (
@@ -18,11 +20,13 @@ export default function Home() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <HeroSection />
-        {/* <HeroParallaxLanding /> */}
+        <BackgroundBeamsWithCollision>
+          {/* <Aurora colorStops={['#0894ff', '#FF2e54', '#ff9004']} blend={1} amplitude={1.0} speed={0.5} /> */}
+          <HeroSection />
+        </BackgroundBeamsWithCollision>
         <Showcase />
         <Features />
-        <AIInsightsDashboard />
+        {/* <AIInsightsDashboard /> */}
         <RoadmapSection />
         <FAQs />
       </motion.main>

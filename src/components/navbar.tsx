@@ -56,7 +56,7 @@ export function Navbar({ onNavigate }: NavbarProps) {
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className='mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6'>
+      <div className='mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6'>
         <motion.div className='flex items-center space-x-3' whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Logo />
           <button
