@@ -21,35 +21,35 @@ let notifications = [
     color: '#00C9A7'
   },
   {
-    name: 'NOLIMIT Group',
+    name: 'TASKZEN Group',
     description: 'GiaLuat has joined your team',
     time: '10m ago',
     icon: '👤',
     color: '#FFB800'
   },
   {
-    name: 'NOLIMIT Group',
+    name: 'TASKZEN Group',
     description: 'DuyenDo has joined your team',
     time: '10m ago',
     icon: '👤',
     color: '#FFBff0'
   },
   {
-    name: 'NOLIMIT Group',
+    name: 'TASKZEN Group',
     description: 'YenTran has joined your team',
     time: '10m ago',
     icon: '👤',
     color: '#FFBff0'
   },
   {
-    name: 'NOLIMIT Group',
+    name: 'TASKZEN Group',
     description: 'KongKong has joined your team',
     time: '10m ago',
     icon: '👤',
     color: '#FF9900'
   },
   {
-    name: 'NOLIMIT Group',
+    name: 'TASKZEN Group',
     description: 'KennyNguyen has sent you a message',
     time: '5m ago',
     icon: '💬',
