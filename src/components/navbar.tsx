@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, Moon, Sun, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext } from 'react'
 import Logo from './logo'
+import { UserContext } from '@/contexts/profile-context'
 
 interface NavbarProps {
   onNavigate: (section: string) => void
@@ -19,6 +20,8 @@ export function Navbar({ onNavigate }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const userContext = useContext(UserContext)
+  const user = userContext?.user || null
 
   useEffect(() => {
     setMounted(true)
@@ -26,6 +29,7 @@ export function Navbar({ onNavigate }: NavbarProps) {
       setScrolled(window.scrollY > 50)
     }
     window.addEventListener('scroll', handleScroll)
+
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
@@ -94,14 +98,27 @@ export function Navbar({ onNavigate }: NavbarProps) {
             </Button>
           </motion.div>
 
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-            <Button
-              onClick={() => handleNavigation(undefined, '/login')} // Điều hướng tới /login
-              className='text-sm font-medium px-4 py-2 rounded-full'
-            >
-              Login
-            </Button>
-          </motion.div>
+          {!user && (
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Button
+                onClick={() => handleNavigation(undefined, '/login')}
+                className='text-sm font-medium px-4 py-2 rounded-full'
+              >
+                Login
+              </Button>
+            </motion.div>
+          )}
+
+          {user && (
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Button
+                onClick={() => handleNavigation(undefined, '/dashboard')}
+                className='text-sm font-medium px-4 py-2 rounded-full'
+              >
+                Dashboard
+              </Button>
+            </motion.div>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
