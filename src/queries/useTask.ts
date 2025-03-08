@@ -45,6 +45,9 @@ export const useUpdateTaskMutation = () => {
             queryClient.invalidateQueries({
                 queryKey: ['all-tasks', variables.projectId]
             })
+            queryClient.invalidateQueries({
+                queryKey: ['task', variables.projectId, variables.taskId]
+            })
             toast({
                 title: 'Task updated successfully',
                 description: variables.body.title ? `"${variables.body.title}"` : undefined
@@ -92,111 +95,121 @@ export const useCreateTaskMutation = () => {
 export const useGetSubTasksOfTask = (projectId: string, taskId: string) => {
     return useQuery({
         queryKey: ['sub-tasks', projectId, taskId],
-        queryFn: () => taskApiRequest.sGetSubTasksOfTask(projectId, taskId)
+        queryFn: () => taskApiRequest.sGetSubTasksOfTask(projectId, taskId),
+        enabled: !!projectId && !!taskId
     })
 }
 
-// export const useDeleteTaskMutation = () => {
-//     const queryClient = useQueryClient()
+export const useDeleteTaskMutation = () => {
+    const queryClient = useQueryClient()
 
-//     return useMutation({
-//         mutationFn: (params: { projectId: string, taskId: string }) => {
-//             return taskApiRequest.sDeleteTask(params.projectId, params.taskId)
-//         },
-//         onSuccess: (_, variables) => {
-//             queryClient.invalidateQueries({
-//                 queryKey: ['tasks', variables.projectId]
-//             })
-//             queryClient.invalidateQueries({
-//                 queryKey: ['all-tasks', variables.projectId]
-//             })
-//             toast({
-//                 title: 'Task deleted successfully'
-//             })
-//         },
-//         onError: (error: any) => {
-//             toast({
-//                 title: 'Failed to delete task',
-//                 description: error.response?.data?.message || 'An error occurred',
-//                 variant: 'destructive'
-//             })
-//         }
-//     })
-// }
+    return useMutation({
+        mutationFn: (params: { projectId: string, taskId: string }) => {
+            return taskApiRequest.sDeleteTask(params.projectId, params.taskId)
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: ['tasks', variables.projectId]
+            })
+            queryClient.invalidateQueries({
+                queryKey: ['all-tasks', variables.projectId]
+            })
+            toast({
+                title: 'Task deleted successfully'
+            })
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to delete task',
+                description: error.response?.data?.message || 'An error occurred',
+                variant: 'destructive'
+            })
+        }
+    })
+}
 
-// export const useCreateSubTaskMutation = () => {
-//     const queryClient = useQueryClient()
+export const useCreateSubTaskMutation = () => {
+    const queryClient = useQueryClient()
 
-//     return useMutation({
-//         mutationFn: (params: { projectId: string, taskId: string, body: NewTask }) => {
-//             return taskApiRequest.sCreateSubTask(params.projectId, params.taskId, params.body)
-//         },
-//         onSuccess: (_, variables) => {
-//             queryClient.invalidateQueries({
-//                 queryKey: ['sub-tasks', variables.projectId, variables.taskId]
-//             })
-//             toast({
-//                 title: 'Subtask created successfully',
-//                 description: `"${variables.body.title}"`
-//             })
-//         },
-//         onError: (error: any) => {
-//             toast({
-//                 title: 'Failed to create subtask',
-//                 description: error.response?.data?.message || 'An error occurred',
-//                 variant: 'destructive'
-//             })
-//         }
-//     })
-// }
+    return useMutation({
+        mutationFn: (params: { projectId: string, taskId: string, body: NewTask }) => {
+            return taskApiRequest.sCreateSubTask(params.projectId, params.taskId, params.body)
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: ['sub-tasks', variables.projectId, variables.taskId]
+            })
+            queryClient.invalidateQueries({
+                queryKey: ['task', variables.projectId, variables.taskId]
+            })
+            toast({
+                title: 'Subtask created successfully',
+                description: `"${variables.body.title}"`
+            })
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to create subtask',
+                description: error.response?.data?.message || 'An error occurred',
+                variant: 'destructive'
+            })
+        }
+    })
+}
 
-// export const useUpdateSubTaskMutation = () => {
-//     const queryClient = useQueryClient()
+export const useUpdateSubTaskMutation = () => {
+    const queryClient = useQueryClient()
 
-//     return useMutation({
-//         mutationFn: (params: { projectId: string, taskId: string, subTaskId: string, body: UpdateTaskBodyType }) => {
-//             return taskApiRequest.sUpdateSubTask(params.projectId, params.taskId, params.subTaskId, params.body)
-//         },
-//         onSuccess: (_, variables) => {
-//             queryClient.invalidateQueries({
-//                 queryKey: ['sub-tasks', variables.projectId, variables.taskId]
-//             })
-//             toast({
-//                 title: 'Subtask updated successfully',
-//                 description: variables.body.title ? `"${variables.body.title}"` : undefined
-//             })
-//         },
-//         onError: (error: any) => {
-//             toast({
-//                 title: 'Failed to update subtask',
-//                 description: error.response?.data?.message || 'An error occurred',
-//                 variant: 'destructive'
-//             })
-//         }
-//     })
-// }
+    return useMutation({
+        mutationFn: (params: { projectId: string, taskId: string, subTaskId: string, body: UpdateTaskBodyType }) => {
+            return taskApiRequest.sUpdateSubTask(params.projectId, params.taskId, params.subTaskId, params.body)
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: ['sub-tasks', variables.projectId, variables.taskId]
+            })
+            queryClient.invalidateQueries({
+                queryKey: ['task', variables.projectId, variables.taskId]
+            })
+            toast({
+                title: 'Subtask updated successfully',
+                description: variables.body.title ? `"${variables.body.title}"` : undefined
+            })
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to update subtask',
+                description: error.response?.data?.message || 'An error occurred',
+                variant: 'destructive'
+            })
+        }
+    })
+}
 
-// export const useDeleteSubTaskMutation = () => {
-//     const queryClient = useQueryClient()
+export const useDeleteSubTaskMutation = () => {
+    const queryClient = useQueryClient()
 
-//     return useMutation({
-//         mutationFn: (params: { projectId: string, taskId: string, subTaskId: string }) => {
-//             return taskApiRequest.sDeleteSubTask(params.projectId, params.taskId, params.subTaskId)
-//         },
-//         onSuccess: (_, variables) => {
-//             queryClient.invalidateQueries({
-//                 queryKey: ['sub-tasks', variables.projectId, variables.taskId]
-//             })
-//             toast({
-//                 title: 'Subtask deleted successfully'
-//             })
-//         },
-//         onError: (error: any) => {
-//             toast({
-//                 title: 'Failed to delete subtask',
-//                 description: error.response?.data?.message || 'An error occurred',
-//                 variant: 'destructive'
-//             })
-//         }
-//     })
-// }
+    return useMutation({
+        mutationFn: (params: { projectId: string, taskId: string, subTaskId: string }) => {
+            return taskApiRequest.sDeleteSubTask(params.projectId, params.taskId, params.subTaskId)
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: ['sub-tasks', variables.projectId, variables.taskId]
+            })
+            queryClient.invalidateQueries({
+                queryKey: ['task', variables.projectId, variables.taskId]
+            })
+            toast({
+                title: 'Subtask deleted successfully'
+            })
+        },
+        onError: (error: any) => {
+            toast({
+                title: 'Failed to delete subtask',
+                description: error.response?.data?.message || 'An error occurred',
+                variant: 'destructive'
+            })
+        }
+    })
+}
