@@ -146,7 +146,7 @@ export default function BoardView() {
 
   if (isLoading) {
     return (
-      <div className='container py-6'>
+      <div className='container py-6 px-4 md:px-6'>
         <div className='flex items-center justify-between mb-6'>
           <Skeleton className='h-10 w-64' />
           <Skeleton className='h-10 w-32' />
@@ -175,63 +175,67 @@ export default function BoardView() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className='container py-6'>
+      <div className='container py-6 px-4 md:px-6'>
         <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6'>
           <div className='flex-1 w-full md:max-w-md'>
             <div className='relative'>
-              <Search className='absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+              <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
               <Input
                 placeholder='Search tasks...'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className='pl-8'
+                className='pl-9 py-2'
               />
             </div>
           </div>
 
-          <div className='flex items-center gap-2'>
+          <div className='flex items-center gap-2 flex-wrap justify-end'>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant='outline' size='sm' className='flex items-center gap-1'>
+                <Button variant='outline' size='sm' className='flex items-center gap-1 h-9'>
                   <Filter className='h-4 w-4' />
-                  {filterPriority ? `Priority: ${filterPriority}` : 'Filter'}
+                  {filterPriority ? `Priority: ${filterPriority}` : 'Filter by Priority'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align='end'>
+                <DropdownMenuItem onClick={() => setFilterPriority('Urgent')}>Urgent Priority</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterPriority('High')}>High Priority</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterPriority('Medium')}>Medium Priority</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterPriority('Low')}>Low Priority</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterPriority('No Priority')}>No Priority</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterPriority(null)}>Clear Filter</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             {(searchQuery || filterPriority) && (
-              <Button variant='ghost' size='sm' onClick={clearFilters}>
+              <Button variant='ghost' size='sm' onClick={clearFilters} className='h-9'>
                 Clear All
               </Button>
             )}
 
-            <div className='text-sm text-muted-foreground'>
+            <div className='text-sm text-muted-foreground px-2 py-1 bg-muted rounded-md'>
               {filteredTasks.length} of {localTasks.length} tasks
             </div>
           </div>
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 overflow-x-auto'>
+        <div className='flex flex-wrap p-2 overflow-x-auto'>
           {statuses.map((status) => {
             const columnTasks = filteredTasks.filter((task) => task.status === status.name)
 
             return (
-              <DroppableColumn
-                key={status.name}
-                id={status.name}
-                title={status.name}
-                color={status.color}
-                borderColor={status.borderColor}
-                tasks={columnTasks}
-                icon={status.icon}
-                projectId={projectId as string}
-              />
+              <div key={status.name} className='flex-1 min-w-[340px] mb-6 mx-3'>
+                <DroppableColumn
+                  id={status.name}
+                  title={status.name}
+                  color={status.color}
+                  borderColor={status.borderColor}
+                  tasks={columnTasks}
+                  icon={status.icon}
+                  projectId={projectId as string}
+                  className='px-5 py-4 w-full'
+                />
+              </div>
             )
           })}
         </div>

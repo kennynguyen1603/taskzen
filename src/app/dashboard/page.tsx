@@ -1,4 +1,4 @@
-import UserDashboard from './UserDashboard'
+import UserDashboard from './user-dashboard'
 import { Metadata } from 'next'
 import React from 'react'
 

@@ -179,7 +179,7 @@ export default function PriorityView() {
 
   if (isLoading) {
     return (
-      <div className='container py-6 px-4 md:px-6'>
+      <div className='container'>
         <div className='flex items-center justify-between mb-6'>
           <Skeleton className='h-10 w-64' />
           <Skeleton className='h-10 w-32' />
@@ -270,30 +270,37 @@ export default function PriorityView() {
         {/* Desktop view with horizontal scroll */}
         <div className='hidden md:block'>
           <ScrollArea className='w-full whitespace-nowrap rounded-md border'>
-            <div className='flex p-4 gap-4'>
+            <div className='flex p-6 gap-4'>
               {visiblePriorityColumns.map((priority) => {
-                const columnTasks = filteredTasks.filter((task) => {
-                  if (priority.name === 'No Priority') {
-                    return !task.priority || task.priority === 'No Priority'
-                  }
-                  return task.priority === priority.name
-                })
+                const columnTasks = filteredTasks
+                  .filter((task) => {
+                    if (priority.name === 'No Priority') {
+                      return !task.priority || task.priority === 'No Priority'
+                    }
+                    return task.priority === priority.name
+                  })
+                  .map((task) => ({
+                    ...task,
+                    title: task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title,
+                    description:
+                      task.description && task.description.length > 60
+                        ? `${task.description.substring(0, 60)}...`
+                        : task.description
+                  }))
 
                 return (
-                  <DroppableColumn
-                    key={priority.name}
-                    id={priority.name}
-                    title={priority.name}
-                    color={priority.color}
-                    borderColor={priority.borderColor}
-                    tasks={columnTasks}
-                    icon={priority.icon}
-                    projectId={projectId as string}
-                    className={cn(
-                      'min-w-[300px] md:min-w-[280px] lg:min-w-[320px]',
-                      priority.name === 'No Priority' ? 'opacity-90' : ''
-                    )}
-                  />
+                  <div key={priority.name} className='w-[350px] flex-shrink-0'>
+                    <DroppableColumn
+                      id={priority.name}
+                      title={priority.name}
+                      color={priority.color}
+                      borderColor={priority.borderColor}
+                      tasks={columnTasks}
+                      icon={priority.icon}
+                      projectId={projectId as string}
+                      className={cn('w-full px-4 py-3', priority.name === 'No Priority' ? 'opacity-90' : '')}
+                    />
+                  </div>
                 )
               })}
             </div>
@@ -306,7 +313,21 @@ export default function PriorityView() {
           {priorities
             .filter((priority) => priority.name === priorities[currentColumnIndex].name)
             .map((priority) => {
-              const columnTasks = filteredTasks.filter((task) => task.priority === priority.name)
+              const columnTasks = filteredTasks
+                .filter((task) => {
+                  if (priority.name === 'No Priority') {
+                    return !task.priority || task.priority === 'No Priority'
+                  }
+                  return task.priority === priority.name
+                })
+                .map((task) => ({
+                  ...task,
+                  title: task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title,
+                  description:
+                    task.description && task.description.length > 60
+                      ? `${task.description.substring(0, 60)}...`
+                      : task.description
+                }))
 
               return (
                 <DroppableColumn
@@ -318,7 +339,7 @@ export default function PriorityView() {
                   tasks={columnTasks}
                   icon={priority.icon}
                   projectId={projectId as string}
-                  className='w-full'
+                  className='w-full px-4 py-3'
                 />
               )
             })}

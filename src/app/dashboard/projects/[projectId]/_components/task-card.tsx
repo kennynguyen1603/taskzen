@@ -14,7 +14,7 @@ interface TaskCardProps {
 export function TaskCard({ task, style, onClick }: TaskCardProps) {
   return (
     <Card
-      className='p-3 cursor-pointer hover:shadow-md transition-shadow bg-white dark:bg-gray-800'
+      className='cursor-pointer hover:shadow-md transition-shadow bg-white dark:bg-gray-800'
       style={style}
       onClick={onClick}
     >
