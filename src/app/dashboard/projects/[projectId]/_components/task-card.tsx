@@ -20,10 +20,10 @@ export function TaskCard({ task, style, onClick }: TaskCardProps) {
     >
       <div className='space-y-2'>
         <div className='flex items-center justify-between'>
-          <h4 className='font-medium text-sm'>{task.name}</h4>
-          <Badge variant='secondary' className={`${task.status.color} text-white`}>
+          <h4 className='font-medium text-sm'>{task.title}</h4>
+          {/* <Badge variant='secondary' className={`${task.status.color} text-white`}>
             {task.status.name}
-          </Badge>
+          </Badge> */}
         </div>
 
         <div className='space-y-1'>
@@ -36,19 +36,19 @@ export function TaskCard({ task, style, onClick }: TaskCardProps) {
 
         <div className='flex items-center justify-between'>
           <div className='flex -space-x-2'>
-            {task.assignees.map((assignee) => (
-              <Avatar key={assignee.id} className='h-6 w-6 border-2 border-background'>
-                <AvatarImage src={assignee.avatar} alt={assignee.name} />
-                <AvatarFallback>{assignee.name[0]}</AvatarFallback>
+            {task.assignee && (
+              <Avatar key={task.assignee._id} className='h-6 w-6 border-2 border-background'>
+                <AvatarImage src={task.assignee.avatar_url} alt={task.assignee.username} />
+                <AvatarFallback>{task.assignee.username[0]}</AvatarFallback>
               </Avatar>
-            ))}
+            )}
           </div>
           <div className='flex gap-1'>
-            {task.tags.map((tag) => (
-              <Badge key={tag} variant='outline' className='text-xs'>
-                {tag}
+            {task.priority && (
+              <Badge key={task.priority} variant='outline' className='text-xs'>
+                {task.priority}
               </Badge>
-            ))}
+            )}
           </div>
         </div>
       </div>
