@@ -7,12 +7,13 @@ import messageApiRequest from '@/api-requests/message'
 import conversationApiRequest from '@/api-requests/conversation'
 import useChatStore from '@/hooks/use-chat-store'
 import { ChatList } from './chat-list'
-import ChatTopbar from './chat-topbar'
+import { ChatTopbar } from './chat-topbar'
 import { useNewMessageMutation } from '@/queries/useMessage'
 import { MessageResType } from '@/schema-validations/message.schema'
 import { Loader2 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { UserContext } from '@/contexts/profile-context'
+import { CallSocketHandler } from '@/components/call-socket-handler'
 
 export function Chat() {
   const { conversation_id } = useParams()
@@ -202,6 +203,7 @@ export function Chat() {
     <div className='flex flex-col h-full'>
       <ChatTopbar selectedUser={selectedConversation} />
       <ChatList selectedUser={selectedConversation} sendMessage={handleSendMessage} isMobile={false} />
+      <CallSocketHandler />
     </div>
   )
 }
