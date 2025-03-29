@@ -10,6 +10,8 @@ import { MessageResType } from '@/schema-validations/message.schema'
 import { Sidebar } from '@/containers/message/sidebar-message'
 import { useRouter } from 'next/navigation'
 import { UserContext } from '@/contexts/profile-context'
+import { useQuery } from '@tanstack/react-query'
+import conversationApiRequest from '@/api-requests/conversation'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -28,11 +30,33 @@ export function ChatLayout({
   const messagesMutation = useGetAllMessagesMutation()
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed)
   const [selectedConversation, setSelectedConversation] = React.useState<ConversationType | undefined>(undefined)
-  const [conversations, setConversations] = React.useState<ConversationType[]>([])
   const [messages, setMessages] = React.useState<MessageResType[]>([])
   const [isMobile, setIsMobile] = useState(false)
   const { user } = useContext(UserContext) || {}
   const router = useRouter()
+
+  // Sử dụng useQuery với cấu hình caching tốt hơn
+  const { data: conversationsData } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: async () => {
+      const res = await conversationApiRequest.getAllConversations()
+      return res.payload.data
+    },
+    staleTime: 2000, // Coi dữ liệu cũ sau 2 giây
+    refetchOnWindowFocus: false, // Không tự động refetch khi focus lại window
+    refetchOnMount: true // Refetch khi component được mount
+  })
+
+  const [conversations, setConversations] = React.useState<ConversationType[]>([])
+
+  // Cập nhật danh sách cuộc trò chuyện khi có dữ liệu mới
+  useEffect(() => {
+    if (conversationsData) {
+      console.log('Updating conversations list')
+      setConversations(conversationsData)
+    }
+  }, [conversationsData])
+
   const handleConversationSelect = async (conversation: ConversationType) => {
     setSelectedConversation(conversation)
     try {
@@ -47,14 +71,6 @@ export function ChatLayout({
   }
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      const res = await conversationsMutation.mutateAsync()
-      setConversations(res.payload.data)
-    }
-    fetchConversations()
-  }, [])
-
-  useEffect(() => {
     const checkScreenWidth = () => {
       setIsMobile(window.innerWidth <= 768)
     }
@@ -66,6 +82,14 @@ export function ChatLayout({
       window.removeEventListener('resize', checkScreenWidth)
     }
   }, [])
+
+  // Thêm useEffect để theo dõi sự thay đổi của selectedConversation
+  useEffect(() => {
+    if (selectedConversation) {
+      // Nếu có cuộc trò chuyện được chọn, thực hiện các thao tác cần thiết
+      console.log('Selected conversation changed:', selectedConversation._id)
+    }
+  }, [selectedConversation])
 
   return (
     <ResizablePanelGroup
