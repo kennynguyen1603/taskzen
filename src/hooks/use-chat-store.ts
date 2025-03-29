@@ -10,6 +10,12 @@ interface NewMessageType {
   message_type: 'text' | 'image' | 'file'
 }
 
+interface PaginationState {
+  hasMore: boolean
+  nextCursor?: string | null
+  loadMore?: boolean
+}
+
 interface State {
   input: string
   messages: MessageResType[]
@@ -17,37 +23,66 @@ interface State {
   currentConversationId: string | null
   isLoading: boolean
   error: string | null
+  isSending: boolean
+  lastReadTimestamp: string | null
+  messagesFetched: boolean
+  pagination: PaginationState
+  selectedConversationId: string | null
 }
 
 interface Actions {
   setInput: (input: string) => void
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLTextAreaElement>) => void
-  setMessages: (messages: MessageResType[]) => void
+  setMessages: (messages: MessageResType[] | ((prev: MessageResType[]) => MessageResType[])) => void
   addMessage: (message: MessageResType) => void
   handleNewMessage: (message: MessageResType) => void
   setSelectedConversation: (conversation: ConversationType | null) => void
   setIsLoading: (isLoading: boolean) => void
   setError: (error: string | null) => void
   setCurrentConversationId: (id: string | null) => void
+  setIsSending: (isSending: boolean) => void
+  setLastReadTimestamp: (timestamp: string | null) => void
+  setPagination: (pagination: PaginationState) => void
+  setSelectedConversationId: (id: string | null) => void
+  reset: () => void
+  clearMessages: () => void
+}
+
+const initialState: State = {
+  messages: [],
+  messagesFetched: false,
+  input: '',
+  selectedConversation: null,
+  currentConversationId: null,
+  isLoading: false,
+  error: null,
+  isSending: false,
+  lastReadTimestamp: null,
+  pagination: {
+    hasMore: true,
+    nextCursor: null
+  },
+  selectedConversationId: null
 }
 
 const useChatStore = create<State & Actions>()(
   persist(
     (set, get) => ({
-      // State
-      input: '',
-      messages: [],
-      selectedConversation: null,
-      currentConversationId: null,
-      isLoading: false,
-      error: null,
+      ...initialState,
 
-      // Actions
       setInput: (input) => set({ input }),
 
       handleInputChange: (e) => set({ input: e.target.value }),
 
-      setMessages: (messages) => set({ messages }),
+      setMessages: (messages) =>
+        set((state) => {
+          // Handle both direct message arrays and function updates
+          if (typeof messages === 'function') {
+            const updatedMessages = messages(state.messages);
+            return { messages: updatedMessages, messagesFetched: true };
+          }
+          return { messages, messagesFetched: true };
+        }),
 
       addMessage: (message) =>
         set((state) => ({
@@ -69,7 +104,33 @@ const useChatStore = create<State & Actions>()(
 
       setError: (error) => set({ error }),
 
-      setCurrentConversationId: (id) => set({ currentConversationId: id })
+      setCurrentConversationId: (id) => set({ currentConversationId: id }),
+
+      setIsSending: (isSending) => set({ isSending }),
+
+      setLastReadTimestamp: (timestamp) => set({ lastReadTimestamp: timestamp }),
+
+      setPagination: (pagination) => {
+        set({ pagination })
+      },
+
+      setSelectedConversationId: (id) => {
+        set({ selectedConversationId: id })
+      },
+
+      reset: () => {
+        set(initialState)
+      },
+
+      clearMessages: () => set({
+        messages: [],
+        messagesFetched: false,
+        pagination: {
+          hasMore: true,
+          nextCursor: null,
+          loadMore: false
+        }
+      }),
     }),
     {
       name: 'chat-storage', // unique name for localStorage
