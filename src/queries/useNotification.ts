@@ -3,7 +3,6 @@ import { useEffect, useContext } from 'react';
 import { UserContext } from '@/contexts/profile-context';
 import http from '@/lib/http';
 import { useSocket } from '@/hooks/use-socket';
-import { handleErrorApi } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 // Định nghĩa kiểu dữ liệu cho thông báo
@@ -37,7 +36,7 @@ const API_PATH = 'notifications'; // Không thêm 'api/' vì http.ts có thể �
 
 export const useNotification = () => {
   const queryClient = useQueryClient();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const { user } = useContext(UserContext) || {};
 
   // Lắng nghe sự kiện thông báo mới từ socket
@@ -47,26 +46,26 @@ export const useNotification = () => {
     // Lắng nghe sự kiện nhận thông báo mới
     const handleNewNotification = (notification: Notification) => {
       console.log('[DEBUG] Received new notification:', notification);
-      
+
       // Xử lý thông báo dựa trên loại
       if (notification.type === 'project') {
         console.log('[DEBUG] Received project notification');
         // Có thể thêm xử lý đặc biệt cho thông báo project nếu cần
       }
-      
+
       // Cập nhật cache của danh sách thông báo
       queryClient.setQueryData<NotificationsResponse>(
         ['notifications'],
         (oldData) => {
           if (!oldData) return { notifications: [notification], total: 1, page: 1, limit: 10 };
-          
+
           // Kiểm tra xem thông báo đã tồn tại chưa
           const exists = oldData.notifications.some(n => n._id === notification._id);
           if (exists) {
             console.log('[DEBUG] Notification already exists, not adding');
             return oldData;
           }
-          
+
           console.log('[DEBUG] Adding new notification to cache');
           return {
             ...oldData,
@@ -85,11 +84,11 @@ export const useNotification = () => {
           return { count: oldData.count + 1 };
         }
       );
-      
+
       // Buộc React Query cập nhật UI
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
-      
+
       // Hiển thị toast thông báo nếu cần
       if (notification.type === 'project') {
         // Nếu bạn có thư viện toast, có thể hiển thị thông báo
@@ -118,7 +117,7 @@ export const useNotification = () => {
           console.log(`[DEBUG] Calling API: ${API_PATH}?page=${page}&limit=${limit}`);
           const response = await http.get(`${API_PATH}?page=${page}&limit=${limit}`);
           console.log('[DEBUG] Notifications API response:', response);
-          
+
           if (response.payload) {
             console.log('[DEBUG] Notifications payload:', response.payload.result);
             return response.payload.result as NotificationsResponse;
@@ -140,12 +139,12 @@ export const useNotification = () => {
       queryFn: async (): Promise<UnreadCountResponse> => {
         try {
           const response = await http.get(`${API_PATH}/unread-count`);
-          
+
           if (response.payload) {
             console.log('[DEBUG] Unread count payload:', response.payload);
             return response.payload.result as UnreadCountResponse;
           }
-          
+
           console.log('[DEBUG] No payload found, returning default count');
           return { count: 0 };
         } catch (error) {
@@ -176,20 +175,20 @@ export const useNotification = () => {
     onSuccess: (data) => {
       const notificationId = data.id;
       console.log(`[DEBUG] Successfully marked notification as read: ${notificationId}`);
-      
+
       // Cập nhật cache của danh sách thông báo
       queryClient.setQueryData<NotificationsResponse>(
         ['notifications'],
         (oldData) => {
           if (!oldData) return oldData;
           console.log('[DEBUG] Updating notifications cache after mark as read');
-          
+
           const updatedNotifications = oldData.notifications.map((notification) =>
             notification._id === notificationId
               ? { ...notification, is_read: true }
               : notification
           );
-          
+
           return {
             ...oldData,
             notifications: updatedNotifications
@@ -207,7 +206,7 @@ export const useNotification = () => {
           return { count: newCount };
         }
       );
-      
+
       // Buộc React Query cập nhật UI bằng cách invalidate queries
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
@@ -232,20 +231,20 @@ export const useNotification = () => {
     },
     onSuccess: () => {
       console.log('[DEBUG] Successfully marked all notifications as read');
-      
+
       // Cập nhật cache của danh sách thông báo
       queryClient.setQueryData<NotificationsResponse>(
         ['notifications'],
         (oldData) => {
           if (!oldData) return oldData;
           console.log('[DEBUG] Updating notifications cache after mark all as read');
-          
+
           // Cập nhật tất cả thông báo thành đã đọc
           const updatedNotifications = oldData.notifications.map(notification => ({
             ...notification,
             is_read: true
           }));
-          
+
           return {
             ...oldData,
             notifications: updatedNotifications
@@ -255,10 +254,10 @@ export const useNotification = () => {
 
       // Đặt số lượng thông báo chưa đọc về 0
       queryClient.setQueryData<UnreadCountResponse>(
-        ['unread-count'], 
+        ['unread-count'],
         { count: 0 }
       );
-      
+
       // Buộc React Query cập nhật UI bằng cách invalidate queries
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
@@ -286,21 +285,21 @@ export const useNotification = () => {
     onSuccess: (data) => {
       const notificationId = data.id;
       console.log(`[DEBUG] Successfully deleted notification: ${notificationId}`);
-      
+
       // Lưu trữ thông tin về thông báo bị xóa trước khi cập nhật cache
       const notifications = queryClient.getQueryData<NotificationsResponse>(['notifications']);
       const deletedNotification = notifications?.notifications.find(
         (n) => n._id === notificationId
       );
       const wasUnread = deletedNotification && !deletedNotification.is_read;
-      
+
       // Cập nhật cache của danh sách thông báo
       queryClient.setQueryData<NotificationsResponse>(
         ['notifications'],
         (oldData) => {
           if (!oldData) return oldData;
           console.log('[DEBUG] Updating notifications cache after delete');
-          
+
           return {
             ...oldData,
             notifications: oldData.notifications.filter(
@@ -323,7 +322,7 @@ export const useNotification = () => {
           }
         );
       }
-      
+
       // Buộc React Query cập nhật UI bằng cách invalidate queries
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
@@ -349,7 +348,7 @@ export const useNotification = () => {
     },
     onSuccess: () => {
       console.log('[DEBUG] Successfully deleted all notifications');
-      
+
       // Cập nhật cache của danh sách thông báo
       queryClient.setQueryData<NotificationsResponse>(
         ['notifications'],
@@ -358,10 +357,10 @@ export const useNotification = () => {
 
       // Đặt số lượng thông báo chưa đọc về 0
       queryClient.setQueryData<UnreadCountResponse>(
-        ['unread-count'], 
+        ['unread-count'],
         { count: 0 }
       );
-      
+
       // Buộc React Query cập nhật UI bằng cách invalidate queries
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['unread-count'] });
