@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export const CallSocketHandler = () => {
   const { user } = useContext(UserContext) || {}
-  const socket = useSocket()
+  const { socket } = useSocket()
   const { toast } = useToast()
   const [retryCount, setRetryCount] = useState(0)
   const maxRetries = 5
