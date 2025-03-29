@@ -31,6 +31,32 @@ const conversationApiRequest = {
       headers: {
         Authorization: `Bearer ${access_token}`
       }
-    })
+    }),
+
+  createOrFindConversation: async (userId: string) => {
+    try {
+      return await http.post<any>('/conversations/one-to-one', {
+        participants: [userId]
+      });
+    } catch (error) {
+      console.error('Error creating or finding conversation:', error);
+      throw error;
+    }
+  },
+
+  createGroupConversation: async (data: {
+    participants: string[];
+    conversation_name: string;
+    avatar_url?: string;
+    announcement?: string;
+  }) => {
+    try {
+      return await http.post<any>('/conversations/group', data);
+    } catch (error) {
+      console.error('Error creating group conversation:', error);
+      throw error;
+    }
+  }
 }
+
 export default conversationApiRequest
