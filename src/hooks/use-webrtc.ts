@@ -17,7 +17,7 @@ interface UseWebRTCProps {
 }
 
 export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) => {
-  const socket = useSocket()
+  const { socket } = useSocket()
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
   const [isMuted, setIsMuted] = useState(false)
@@ -27,7 +27,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [isCallActive, setIsCallActive] = useState<boolean>(!!roomId)
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected')
-  
+
   // RTCPeerConnection configurations
   const peerConnectionConfig = {
     iceServers: [
@@ -35,19 +35,19 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       { urls: 'stun:stun1.l.google.com:19302' }
     ]
   }
-  
+
   // Reference to store peer connections
   const peerConnectionsRef = useRef<Map<string, PeerConnection>>(new Map())
   const screenStreamRef = useRef<MediaStream | null>(null)
-  
+
   // Update connection status on server
   const updateConnectionStatus = useCallback(async (status: 'connected' | 'reconnecting' | 'disconnected') => {
     if (!roomId) return
-    
+
     try {
       setConnectionStatus(status)
       console.log(`Updating connection status to: ${status} for room: ${roomId}`)
-      
+
       await callApiRequest.updateConnectionStatus({
         room_id: roomId,
         status: status
@@ -56,7 +56,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       console.error('Failed to update connection status:', error)
     }
   }, [roomId])
-  
+
   // Initialize local media stream
   const startLocalStream = useCallback(async (callType: CallType) => {
     try {
@@ -71,28 +71,28 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       throw error
     }
   }, [])
-  
+
   // Create a new peer connection
   const createPeerConnection = useCallback((userId: string, initiator: boolean, stream: MediaStream) => {
     try {
       const peerConnection = new RTCPeerConnection(peerConnectionConfig)
-      
+
       // Add all tracks from local stream to peer connection
       stream.getTracks().forEach(track => {
         peerConnection.addTrack(track, stream)
       })
-      
+
       // Handle ICE candidate events
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           sendSignal(userId, { ice: event.candidate })
         }
       }
-      
+
       // Handle ICE connection state changes
       peerConnection.oniceconnectionstatechange = () => {
         console.log(`ICE connection state for peer ${userId}: ${peerConnection.iceConnectionState}`)
-        
+
         switch (peerConnection.iceConnectionState) {
           case 'connected':
           case 'completed':
@@ -110,11 +110,11 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
             break
         }
       }
-      
+
       // Handle connection state changes
       peerConnection.onconnectionstatechange = () => {
         console.log(`Connection state for peer ${userId}: ${peerConnection.connectionState}`)
-        
+
         switch (peerConnection.connectionState) {
           case 'connected':
             updateConnectionStatus('connected')
@@ -132,7 +132,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
             break
         }
       }
-      
+
       // Handle track events (remote media stream)
       peerConnection.ontrack = (event) => {
         const [remoteStream] = event.streams
@@ -142,19 +142,19 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
           return newMap
         })
       }
-      
+
       // Store the peer connection
       peerConnectionsRef.current.set(userId, {
         userId,
         connection: peerConnection,
         stream
       })
-      
+
       // If initiator, create offer
       if (initiator) {
         createOffer(userId, peerConnection)
       }
-      
+
       return {
         userId,
         connection: peerConnection,
@@ -165,7 +165,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       throw error
     }
   }, [updateConnectionStatus])
-  
+
   // Create and send offer
   const createOffer = useCallback(async (userId: string, peerConnection: RTCPeerConnection) => {
     try {
@@ -176,35 +176,35 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       console.error('Error creating offer:', error)
     }
   }, [])
-  
+
   // Handle received offer and create answer
   const handleOffer = useCallback(async (userId: string, description: RTCSessionDescriptionInit, stream: MediaStream) => {
     try {
       const peerData = peerConnectionsRef.current.get(userId)
       let peerConnection: RTCPeerConnection
-      
+
       if (!peerData) {
         const newPeerData = createPeerConnection(userId, false, stream)
         peerConnection = newPeerData.connection
       } else {
         peerConnection = peerData.connection
       }
-      
+
       await peerConnection.setRemoteDescription(new RTCSessionDescription(description))
       const answer = await peerConnection.createAnswer()
       await peerConnection.setLocalDescription(answer)
-      
+
       sendSignal(userId, { sdp: peerConnection.localDescription })
     } catch (error) {
       console.error('Error handling offer:', error)
     }
   }, [createPeerConnection])
-  
+
   // Handle received answer
   const handleAnswer = useCallback(async (userId: string, description: RTCSessionDescriptionInit) => {
     try {
       const peerConnection = peerConnectionsRef.current.get(userId)?.connection
-      
+
       if (peerConnection) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(description))
       }
@@ -212,12 +212,12 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       console.error('Error handling answer:', error)
     }
   }, [])
-  
+
   // Handle received ICE candidate
   const handleIceCandidate = useCallback((userId: string, candidate: RTCIceCandidateInit) => {
     try {
       const peerConnection = peerConnectionsRef.current.get(userId)?.connection
-      
+
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
       }
@@ -225,37 +225,37 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       console.error('Error handling ICE candidate:', error)
     }
   }, [])
-  
+
   // Send signal to another user
   const sendSignal = useCallback((toUserId: string, signalData: any) => {
     if (!roomId) return
-    
+
     callApiRequest.sendSignal({
       room_id: roomId,
       to_user_id: toUserId,
       signal_data: signalData
     })
   }, [roomId])
-  
+
   // Handle socket events
   useEffect(() => {
     if (!socket || !roomId || !localUserId) return
-    
+
     // Handle new user joined event
     const handleUserJoined = async (data: { user_id: string }) => {
       if (data.user_id !== localUserId && localStream) {
         createPeerConnection(data.user_id, true, localStream)
       }
     }
-    
+
     // Handle user left event
     const handleUserLeft = (data: { user_id: string }) => {
       const peerConnection = peerConnectionsRef.current.get(data.user_id)
-      
+
       if (peerConnection) {
         peerConnection.connection.close()
         peerConnectionsRef.current.delete(data.user_id)
-        
+
         setRemoteStreams(prev => {
           const newMap = new Map(prev)
           newMap.delete(data.user_id)
@@ -263,11 +263,11 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
         })
       }
     }
-    
+
     // Handle signal event
     const handleSignal = async (data: { from_user_id: string; signal_data: any }) => {
       if (data.from_user_id === localUserId) return
-      
+
       if (!localStream) {
         try {
           const stream = await startLocalStream('video')
@@ -279,7 +279,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
         handleSignalData(data.from_user_id, data.signal_data, localStream)
       }
     }
-    
+
     // Handle signal data based on type
     const handleSignalData = (userId: string, signalData: any, stream: MediaStream) => {
       if (signalData.sdp) {
@@ -292,19 +292,19 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
         handleIceCandidate(userId, signalData.ice)
       }
     }
-    
+
     // Handle call ended event
     const handleCallEnded = () => {
       setCallStatus('ended')
       cleanupCall()
       if (onCallEnded) onCallEnded()
     }
-    
+
     socket.on('user_joined_call', handleUserJoined)
     socket.on('user_left_call', handleUserLeft)
     socket.on('call_signal', handleSignal)
     socket.on('call_ended', handleCallEnded)
-    
+
     return () => {
       socket.off('user_joined_call', handleUserJoined)
       socket.off('user_left_call', handleUserLeft)
@@ -312,7 +312,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       socket.off('call_ended', handleCallEnded)
     }
   }, [socket, roomId, localUserId, localStream, createPeerConnection, handleOffer, handleAnswer, handleIceCandidate, startLocalStream, onCallEnded])
-  
+
   // Join call room
   const joinCallRoom = useCallback(() => {
     if (!socket || !roomId) {
@@ -320,13 +320,13 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       updateConnectionStatus('disconnected')
       return false
     }
-    
+
     try {
       if (!socket.connected) {
         console.warn('Socket not connected, attempting to reconnect...')
         updateConnectionStatus('reconnecting')
         socket.connect()
-        
+
         // Wait for connection before joining
         socket.once('connect', () => {
           console.log('Socket reconnected, joining call room:', roomId)
@@ -345,37 +345,37 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       return false
     }
   }, [socket, roomId, updateConnectionStatus])
-  
+
   // Monitor socket connection status
   useEffect(() => {
     if (!socket || !roomId || !isCallActive) return
-    
+
     const handleConnect = () => {
       console.log('Socket reconnected during call')
       updateConnectionStatus('connected')
-      
+
       // Rejoin call room when socket reconnects
       if (roomId) {
         console.log('Rejoining call room after socket reconnect:', roomId)
         socket.emit('join_call', { room_id: roomId })
       }
     }
-    
+
     const handleDisconnect = (reason: string) => {
       console.log('Socket disconnected during call, reason:', reason)
       updateConnectionStatus('disconnected')
     }
-    
+
     const handleReconnecting = (attemptNumber: number) => {
       console.log(`Socket reconnecting (attempt ${attemptNumber})`)
       updateConnectionStatus('reconnecting')
     }
-    
+
     // Add event listeners
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
     socket.on('reconnect_attempt', handleReconnecting)
-    
+
     return () => {
       // Remove event listeners
       socket.off('connect', handleConnect)
@@ -383,87 +383,87 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       socket.off('reconnect_attempt', handleReconnecting)
     }
   }, [socket, roomId, isCallActive, updateConnectionStatus])
-  
+
   // Leave call room
   const leaveCallRoom = useCallback(() => {
     if (!socket || !roomId) return
     socket.emit('leave_call', { room_id: roomId })
   }, [socket, roomId])
-  
+
   // Initialize call
   const initializeCall = useCallback(async (callType: CallType, conversationId: string) => {
     try {
       console.log('Initializing call of type:', callType, 'for conversation:', conversationId)
       const stream = await startLocalStream(callType)
       setActiveConversationId(conversationId)
-      
+
       // Make sure to verify joinCallRoom success
       const joinSuccess = joinCallRoom()
       if (!joinSuccess) {
         console.error('Failed to join call room')
       }
-      
+
       return stream
     } catch (error) {
       console.error('Error initializing call:', error)
       throw error
     }
   }, [startLocalStream, joinCallRoom])
-  
+
   // Toggle audio
   const toggleAudio = useCallback(() => {
     if (!localStream) return
-    
+
     localStream.getAudioTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    
+
     setIsMuted(prev => !prev)
   }, [localStream])
-  
+
   // Toggle video
   const toggleVideo = useCallback(() => {
     if (!localStream) return
-    
+
     localStream.getVideoTracks().forEach(track => {
       track.enabled = !track.enabled
     })
-    
+
     setIsVideoOff(prev => !prev)
   }, [localStream])
-  
+
   // Toggle screen sharing
   const toggleScreenSharing = useCallback(async () => {
     if (!localStream || !roomId || !activeConversationId) return
-    
+
     try {
       if (!isScreenSharing) {
         // Start screen sharing
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
         screenStreamRef.current = screenStream
-        
+
         // Replace video track with screen track in all peer connections
         const screenTrack = screenStream.getVideoTracks()[0]
-        
+
         peerConnectionsRef.current.forEach(peer => {
           const senders = peer.connection.getSenders()
-          const videoSender = senders.find(sender => 
+          const videoSender = senders.find(sender =>
             sender.track?.kind === 'video'
           )
-          
+
           if (videoSender) {
             videoSender.replaceTrack(screenTrack)
           }
         })
-        
+
         // Notify backend about screen sharing
         await callApiRequest.startScreenShare({ conversation_id: activeConversationId })
-        
+
         // Handle screen sharing ended by user
         screenTrack.onended = () => {
           toggleScreenSharing()
         }
-        
+
         setIsScreenSharing(true)
       } else {
         // Stop screen sharing
@@ -471,35 +471,35 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
           screenStreamRef.current.getTracks().forEach(track => track.stop())
           screenStreamRef.current = null
         }
-        
+
         // Replace screen track with video track in all peer connections
         const videoTrack = localStream.getVideoTracks()[0]
-        
+
         if (videoTrack) {
           peerConnectionsRef.current.forEach(peer => {
             const senders = peer.connection.getSenders()
-            const screenSender = senders.find(sender => 
+            const screenSender = senders.find(sender =>
               sender.track?.kind === 'video'
             )
-            
+
             if (screenSender) {
               screenSender.replaceTrack(videoTrack)
             }
           })
         }
-        
+
         // Notify backend about stopping screen sharing
         if (roomId && activeConversationId) {
           await callApiRequest.endScreenShare(roomId, activeConversationId)
         }
-        
+
         setIsScreenSharing(false)
       }
     } catch (error) {
       console.error('Error toggling screen sharing:', error)
     }
   }, [localStream, roomId, activeConversationId, isScreenSharing])
-  
+
   // Cleanup call resources
   const cleanupCall = useCallback(() => {
     // Stop local stream
@@ -510,7 +510,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       })
       setLocalStream(null)
     }
-    
+
     // Stop screen sharing
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(track => {
@@ -520,16 +520,16 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       screenStreamRef.current = null
       setIsScreenSharing(false)
     }
-    
+
     // Close all peer connections
     peerConnectionsRef.current.forEach(peer => {
       peer.connection.close()
       console.log('Closed peer connection for user:', peer.userId)
     })
-    
+
     peerConnectionsRef.current.clear()
     setRemoteStreams(new Map())
-    
+
     // Always notify the server that you're leaving the call
     if (roomId && socket && socket.connected) {
       console.log('Emitting leave_call for roomId:', roomId)
@@ -539,21 +539,21 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
     } else {
       console.log('Cannot emit leave_call - roomId or socket unavailable')
     }
-    
+
     setActiveConversationId(null)
   }, [localStream, roomId, socket])
-  
+
   // End call
   const endCall = useCallback(async () => {
     if (!roomId) return
-    
+
     try {
       console.log('WebRTC: Ending call for roomId:', roomId)
-      
+
       // Update status first to prevent race conditions
       setCallStatus('ended')
       setIsCallActive(false)
-      
+
       try {
         // Notify backend
         await callApiRequest.endCall(roomId)
@@ -562,10 +562,10 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
         console.error('Error ending call on server:', error)
         // Continue even if server call fails
       }
-      
+
       // Clean up resources
       cleanupCall()
-      
+
       // Notify parent component
       if (onCallEnded) onCallEnded()
     } catch (error) {
@@ -575,7 +575,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
       if (onCallEnded) onCallEnded()
     }
   }, [roomId, onCallEnded, cleanupCall])
-  
+
   // Cleanup on unmount and on tab close
   useEffect(() => {
     // Handle browser tab/window close
@@ -587,7 +587,7 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
           socket.emit('leave_call', { room_id: roomId })
           socket.emit('end_call', { room_id: roomId })
         }
-        
+
         // Try to make a synchronous call to end the call
         try {
           const xhr = new XMLHttpRequest()
@@ -597,29 +597,29 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
         } catch (e) {
           console.error('Failed to make synchronous end call request:', e)
         }
-        
+
         // Standard beforeunload message
         event.preventDefault()
         event.returnValue = 'You are currently in a call. Are you sure you want to leave?'
         return event.returnValue
       }
     }
-    
+
     // Add event listener for beforeunload
     window.addEventListener('beforeunload', handleBeforeUnload)
-    
+
     // Regular cleanup on unmount
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       cleanupCall()
     }
   }, [cleanupCall, roomId, isCallActive, socket])
-  
+
   // Update isCallActive when roomId changes
   useEffect(() => {
     setIsCallActive(!!roomId && callStatus !== 'ended')
   }, [roomId, callStatus])
-  
+
   return {
     localStream,
     remoteStreams,
