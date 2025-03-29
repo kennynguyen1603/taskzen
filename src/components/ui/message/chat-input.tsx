@@ -1,60 +1,43 @@
-import * as React from 'react'
+import React, { forwardRef } from 'react'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { useEffect, useRef } from 'react'
 
-export interface ChatInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+interface ChatInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  value: string
+}
 
-const ChatInput = React.forwardRef<HTMLTextAreaElement, ChatInputProps>(({ className, ...props }, ref) => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-
-  const adjustHeight = () => {
-    const textarea = textareaRef.current
-    if (textarea) {
-      // Reset height to auto to get the correct scrollHeight
-      textarea.style.height = 'auto'
-
-      // Calculate new height (min: 40px, max: 5 lines ≈ 120px)
-      const newHeight = Math.min(Math.max(textarea.scrollHeight, 40), 120)
-
-      textarea.style.height = `${newHeight}px`
+export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
+  ({ className, onChange, onKeyDown, value, ...props }, ref) => {
+    // Xử lý sự kiện onChange
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      onChange(e)
     }
+
+    // Xử lý sự kiện keyDown
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Ngăn chặn hành vi mặc định khi nhấn Enter
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+      }
+
+      onKeyDown(e)
+    }
+
+    return (
+      <Textarea
+        ref={ref}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        placeholder='Nhập tin nhắn...'
+        className={cn('resize-none min-h-10 max-h-20 py-3 px-4 focus-visible:ring-1', className)}
+        rows={1}
+        {...props}
+      />
+    )
   }
-
-  useEffect(() => {
-    // Set initial height
-    adjustHeight()
-  }, [props.value])
-
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    adjustHeight()
-    props.onChange?.(e)
-  }
-
-  return (
-    <textarea
-      ref={(element) => {
-        // Handle both refs
-        textareaRef.current = element
-        if (typeof ref === 'function') {
-          ref(element)
-        } else if (ref) {
-          ref.current = element
-        }
-      }}
-      className={cn(
-        'flex w-full rounded-sm border border-input bg-background px-3 py-2 text-sm ring-offset-background',
-        'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2',
-        'focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-        'resize-none overflow-y-hidden min-h-[40px] max-h-[120px]',
-        className
-      )}
-      onChange={handleInput}
-      rows={1}
-      {...props}
-    />
-  )
-})
+)
 
 ChatInput.displayName = 'ChatInput'
-
-export { ChatInput }
