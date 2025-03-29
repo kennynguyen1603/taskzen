@@ -61,7 +61,13 @@ export interface MessageResType {
 // Schema cho response API khi get messages
 export const MessageResponseSchema = z.object({
   message: z.string(),
-  metadata: z.array(MessageSchema)
+  data: z.object({
+    messages: z.array(MessageSchema),
+    pagination: z.object({
+      hasMore: z.boolean(),
+      nextCursor: z.string().nullable()
+    })
+  })
 })
 
 export type MessageResponseType = z.infer<typeof MessageResponseSchema>
