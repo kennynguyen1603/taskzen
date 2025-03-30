@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Lưu token vào cookie secure và httpOnly
         res.setHeader(
             'Set-Cookie',
-            `auth_token=${appToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24 * 7}`
+            `access_token=${appToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${60 * 60 * 24 * 7}`
         );
 
         return res.status(200).json({
