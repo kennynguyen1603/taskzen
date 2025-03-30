@@ -13,116 +13,145 @@ interface ChatListProps {
   selectedUser: ConversationType
   sendMessage: (message: { message_content: string; message_type: 'text' | 'image' | 'file' }) => void
   isMobile: boolean
+  loadOlderMessages?: () => void
 }
 
-export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps) {
+export function ChatList({ selectedUser, sendMessage, isMobile, loadOlderMessages }: ChatListProps) {
   const { user } = useContext(UserContext) || {}
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageListRef = useRef<HTMLDivElement>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
-  const { isLoading, messages, messagesFetched, setPagination, pagination, lastReadTimestamp, setLastReadTimestamp } =
-    useChatStore()
+  const { isLoading, messages, messagesFetched, setPagination, pagination, lastReadTimestamp } = useChatStore()
   const [unreadMessagePosition, setUnreadMessagePosition] = useState<number | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Đảm bảo messages là một mảng trước khi sử dụng
-  const safeMessages = Array.isArray(messages) ? messages : []
+  const safeMessages = useMemo(() => (Array.isArray(messages) ? messages : []), [messages])
 
   // Add ref to track scroll position and message height before loading more
   const scrollPositionRef = useRef<{ top: number; height: number } | null>(null)
   const isScrollingUpRef = useRef(false)
   const isInitialLoadRef = useRef(true)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  // Add new refs to track scroll better
+  const lastKnownScrollPosition = useRef<number>(0)
+  const lastKnownScrollHeight = useRef<number>(0)
+  const shouldMaintainScroll = useRef<boolean>(false)
 
-  // Handle scroll position after messages change
+  // Add new ref to block auto-scrolling completely when loading older messages
+  const blockAutoScrollRef = useRef<boolean>(false)
+
+  // Add ref to track last visible message before loading more
+  const lastVisibleMessageRef = useRef<string | null>(null)
+
+  // Function to find the anchor message element
+  const findAnchorMessageElement = useCallback(() => {
+    if (!messageListRef.current) return null
+
+    // Get all message elements
+    const messages = messageListRef.current.querySelectorAll('[id^="message-"]')
+    if (messages.length === 0) return null
+
+    const containerRect = messageListRef.current.getBoundingClientRect()
+
+    // Find the first message that's fully or partially visible
+    for (let i = 0; i < messages.length; i++) {
+      const messageRect = messages[i].getBoundingClientRect()
+
+      // Check if message is visible in the viewport
+      if (messageRect.top < containerRect.bottom && messageRect.bottom > containerRect.top) {
+        return messages[i].id
+      }
+    }
+
+    return null
+  }, [])
+
+  // Simplified scrollToBottom that's blocked when loading messages
+  const scrollToBottom = useCallback(() => {
+    if (blockAutoScrollRef.current) return
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
+
+  // Load more messages when scrolling to top - modified to track anchor element
+  const loadMoreMessages = useCallback(() => {
+    // Prevent multiple triggers while already loading
+    if (isLoadingMore || !pagination?.hasMore) return
+
+    // Block auto scroll first
+    blockAutoScrollRef.current = true
+
+    // Find and store the ID of the first visible message BEFORE loading
+    lastVisibleMessageRef.current = findAnchorMessageElement()
+
+    setIsLoadingMore(true)
+
+    // Call the appropriate loading function
+    if (loadOlderMessages) {
+      loadOlderMessages()
+    } else if (pagination?.nextCursor) {
+      setPagination({
+        hasMore: pagination.hasMore,
+        nextCursor: pagination.nextCursor,
+        loadMore: true
+      })
+    } else {
+      setIsLoadingMore(false)
+      blockAutoScrollRef.current = false
+      return
+    }
+
+    // Hide loading indicator after timeout
+    setTimeout(() => {
+      setIsLoadingMore(false)
+    }, 3000)
+  }, [isLoadingMore, pagination, setPagination, loadOlderMessages, findAnchorMessageElement])
+
+  // Add effect to handle messages changes and maintain scroll position
   useEffect(() => {
+    // Only run if we have an anchor and we're not in initial load
+    if (lastVisibleMessageRef.current && !isInitialLoadRef.current) {
+      // After messages update, scroll to the saved anchor element
+      const scrollToAnchor = () => {
+        const anchorElement = document.getElementById(lastVisibleMessageRef.current || '')
+        if (anchorElement) {
+          anchorElement.scrollIntoView({ block: 'start' })
+
+          // Reset the block auto scroll flag after scrolling to anchor
+          setTimeout(() => {
+            blockAutoScrollRef.current = false
+          }, 100)
+        } else {
+          blockAutoScrollRef.current = false
+        }
+      }
+
+      // Need to wait for DOM to be updated with new messages
+      setTimeout(() => {
+        requestAnimationFrame(scrollToAnchor)
+      }, 300)
+    }
+  }, [messages])
+
+  // Effect to handle normal message scroll behavior
+  useEffect(() => {
+    // Skip if we're supposed to maintain scroll position
+    if (blockAutoScrollRef.current) return
+
     if (isInitialLoadRef.current) {
       // For initial load, scroll to bottom
       scrollToBottom()
       isInitialLoadRef.current = false
-    } else if (isLoadingMore && messageListRef.current) {
-      // For loading older messages, maintain the current scroll position
-      requestAnimationFrame(() => {
-        if (messageListRef.current) {
-          // Get the current scroll height and scroll position
-          const { scrollHeight, scrollTop } = messageListRef.current
-
-          // Calculate how many new messages were added
-          const newScrollHeight = messageListRef.current.scrollHeight
-          const scrollDiff = newScrollHeight - scrollHeight
-
-          // Adjust scroll position to account for new messages
-          messageListRef.current.scrollTop = scrollTop + scrollDiff
-          console.log('Maintained scroll position after loading older messages')
-        }
-      })
-    } else if (!isLoadingMore) {
-      // Only scroll to bottom for new messages
+    } else {
+      // Only scroll to bottom for new messages from current user
       const lastMessage = messages[messages.length - 1]
-      // Check if the last message is from the current user
       if (lastMessage?.sender?._id === user?._id) {
         scrollToBottom()
       }
     }
-  }, [messages, isLoadingMore, user?._id])
-
-  // Load more messages when scrolling to top
-  const loadMoreMessages = useCallback(() => {
-    // Prevent multiple triggers while already loading
-    if (isLoadingMore || !pagination?.hasMore) {
-      console.log('Skip load more - already loading or no more messages')
-      return
-    }
-
-    console.log('Loading more messages - user scrolled to top')
-    setIsLoadingMore(true)
-
-    // Set a flag to indicate manually loading more
-    if (pagination?.nextCursor) {
-      console.log('Requesting more messages with nextCursor:', pagination.nextCursor)
-      setPagination({
-        hasMore: pagination.hasMore,
-        nextCursor: pagination.nextCursor,
-        loadMore: true // Set this flag to true to trigger loading in parent component
-      })
-
-      // Wait a bit and then hide the loading indicator
-      setTimeout(() => {
-        setIsLoadingMore(false)
-      }, 1000)
-    } else {
-      console.log('No nextCursor available, cannot load more')
-      setIsLoadingMore(false)
-    }
-  }, [isLoadingMore, pagination, setPagination])
-
-  // Track scroll direction and position
-  useEffect(() => {
-    if (!messageListRef.current) return
-
-    const messageList = messageListRef.current
-    let lastScrollTop = messageList.scrollTop
-
-    const handleScroll = () => {
-      const currentScrollTop = messageList.scrollTop
-      isScrollingUpRef.current = currentScrollTop < lastScrollTop
-      lastScrollTop = currentScrollTop
-
-      // Only consider loading more if we're near the top (within 100px)
-      if (isScrollingUpRef.current && currentScrollTop < 100 && !isLoadingMore && pagination?.hasMore) {
-        console.log('Near top of message list, considering loading more')
-        loadMoreMessages()
-      }
-    }
-
-    messageList.addEventListener('scroll', handleScroll)
-    return () => messageList.removeEventListener('scroll', handleScroll)
-  }, [isLoadingMore, pagination?.hasMore, loadMoreMessages])
+  }, [messages, user?._id, scrollToBottom])
 
   const sortedMessages = useMemo(() => {
     // Lọc các tin nhắn có created_at hợp lệ trước khi sắp xếp
@@ -155,7 +184,7 @@ export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps)
     setUnreadMessagePosition(null)
   }, [sortedMessages, lastReadTimestamp, user?._id])
 
-  const ScrollToUnreadButton = () => {
+  const ScrollToUnreadButton = useCallback(() => {
     const scrollToUnread = () => {
       if (unreadMessagePosition !== null) {
         const unreadMessageElement = document.getElementById(`message-${sortedMessages[unreadMessagePosition]._id}`)
@@ -186,7 +215,7 @@ export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps)
         </svg>
       </button>
     )
-  }
+  }, [sortedMessages, unreadMessagePosition])
 
   // Nhóm tin nhắn theo ngày
   const formattedMessages = useMemo(() => {
@@ -218,13 +247,107 @@ export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps)
           message
         })
       } catch (error) {
-        console.error('Error processing message date:', error, message)
         // Bỏ qua tin nhắn lỗi, không thêm vào nhóm
       }
     }
 
     return groups
   }, [sortedMessages])
+
+  // Track scroll direction and position
+  useEffect(() => {
+    if (!messageListRef.current) return
+
+    const messageList = messageListRef.current
+    let lastScrollTop = messageList.scrollTop
+    let scrollTimer: NodeJS.Timeout | null = null
+
+    const handleScroll = () => {
+      // Don't trigger load more if we're blocking auto-scroll
+      if (blockAutoScrollRef.current) return
+
+      const currentScrollTop = messageList.scrollTop
+      isScrollingUpRef.current = currentScrollTop < lastScrollTop
+      lastScrollTop = currentScrollTop
+
+      // Clear existing timer to prevent multiple rapid calls
+      if (scrollTimer) clearTimeout(scrollTimer)
+
+      // Set a small delay to avoid triggering the load too frequently during rapid scrolling
+      scrollTimer = setTimeout(() => {
+        // Only consider loading more if we're very near the top (within 100px) and scrolling up
+        if (isScrollingUpRef.current && currentScrollTop < 100 && !isLoadingMore && pagination?.hasMore) {
+          loadMoreMessages()
+        }
+      }, 100)
+    }
+
+    messageList.addEventListener('scroll', handleScroll)
+    return () => {
+      messageList.removeEventListener('scroll', handleScroll)
+      if (scrollTimer) clearTimeout(scrollTimer)
+    }
+  }, [isLoadingMore, pagination?.hasMore, loadMoreMessages])
+
+  // Memoize MessageItems to prevent unnecessary re-renders
+  const MessageItems = useMemo(() => {
+    return formattedMessages.map((item: any) =>
+      item.type === 'date' ? (
+        <div key={item.id} className='flex justify-center my-4'>
+          <div className='text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md'>{item.date}</div>
+        </div>
+      ) : (
+        <div key={item.message._id} id={`message-${item.message._id}`}>
+          <MessageBox
+            message={item.message}
+            conversation={selectedUser}
+            isRead={lastReadTimestamp ? new Date(item.message.created_at) <= new Date(lastReadTimestamp) : false}
+          />
+        </div>
+      )
+    )
+  }, [formattedMessages, selectedUser, lastReadTimestamp])
+
+  const LoadMoreButton = useMemo(() => {
+    if (!isLoadingMore && pagination?.hasMore && safeMessages.length > 0) {
+      return (
+        <button
+          onClick={loadMoreMessages}
+          className='flex items-center space-x-1 text-xs bg-primary/5 hover:bg-primary/10 text-primary/80 hover:text-primary rounded-md px-3 py-2 transition-colors shadow-sm'
+        >
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            width='14'
+            height='14'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+          >
+            <path d='m18 15-6-6-6 6' />
+          </svg>
+          <span>Xem tin nhắn cũ hơn</span>
+        </button>
+      )
+    }
+    return null
+  }, [isLoadingMore, pagination?.hasMore, safeMessages.length, loadMoreMessages])
+
+  const LoadingIndicator = useMemo(() => {
+    if (isLoadingMore) {
+      return (
+        <div className='flex flex-col items-center bg-primary/10 rounded-lg p-3 w-full max-w-[250px] shadow-sm'>
+          <div className='flex items-center'>
+            <Loader2 className='h-5 w-5 animate-spin text-primary mr-2' />
+            <span className='text-xs font-medium text-primary'>Đang tải tin nhắn cũ hơn...</span>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }, [isLoadingMore])
 
   return (
     <>
@@ -242,16 +365,24 @@ export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps)
             {/* Loading indicator for pagination - now more visible and centered */}
             <div
               ref={loadMoreRef}
-              className={`h-8 flex items-center justify-center -mt-2 mb-2 sticky top-0 z-10 ${
-                isLoadingMore ? 'bg-background/80 backdrop-blur-sm py-4' : ''
+              className={`h-12 flex items-center justify-center -mt-2 mb-2 sticky top-0 z-10 transition-all duration-200 ${
+                isLoadingMore ? 'bg-background/90 backdrop-blur-sm py-6' : ''
               }`}
             >
-              {isLoadingMore && pagination?.hasMore && (
-                <div className='flex flex-col items-center'>
-                  <Loader2 className='h-5 w-5 animate-spin text-sky-500' />
-                  <span className='text-xs text-muted-foreground mt-1'>Đang tải tin nhắn cũ hơn...</span>
-                </div>
-              )}
+              {LoadingIndicator}
+              {LoadMoreButton}
+            </div>
+
+            {/* Indicator when new messages are being loaded */}
+            {isLoadingMore && (
+              <div className='bg-muted/30 border border-dashed border-muted-foreground/20 rounded-md p-2 mb-3 text-xs text-center text-muted-foreground flex items-center justify-center'>
+                <span>Đang tải thêm tin nhắn cũ...</span>
+              </div>
+            )}
+
+            {/* Debug info */}
+            <div className='text-xs text-muted-foreground text-center mb-2'>
+              {safeMessages.length} tin nhắn {pagination?.nextCursor && !isLoadingMore ? `(Còn tin nhắn cũ hơn)` : ''}
             </div>
 
             {/* Unread messages indicator */}
@@ -272,20 +403,7 @@ export function ChatList({ selectedUser, sendMessage, isMobile }: ChatListProps)
                 </button>
               </div>
             )}
-            {formattedMessages.map((item: any) =>
-              item.type === 'date' ? (
-                <div key={item.id} className='flex justify-center my-4'>
-                  <div className='text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md'>{item.date}</div>
-                </div>
-              ) : (
-                <MessageBox
-                  key={item.message._id}
-                  message={item.message}
-                  conversation={selectedUser}
-                  isRead={lastReadTimestamp ? new Date(item.message.created_at) <= new Date(lastReadTimestamp) : false}
-                />
-              )
-            )}
+            {MessageItems}
             <div ref={messagesEndRef} />
           </>
         )}
