@@ -116,17 +116,20 @@ export function ChatLayout({
         className={cn(isCollapsed && 'min-w-[50px] md:min-w-[70px] transition-all duration-300 ease-in-out')}
       >
         <Sidebar
-          isCollapsed={isCollapsed || isMobile}
           chats={conversations.map((conversation) => ({
             id: conversation._id,
             name: conversation.conversation_name,
-            participants: conversation.participants,
+            participants: {
+              ...conversation.participants,
+              status: conversation.participants.status || 'offline'
+            },
             variant: selectedConversation?._id === conversation._id ? 'secondary' : 'ghost',
             is_group: conversation.is_group,
             currentUserId: user?._id,
             last_message: conversation.last_message as LastMessageType
           }))}
           isMobile={isMobile}
+          isCollapsed={isCollapsed || isMobile}
           onUserSelect={handleConversationSelect}
           selectedUserId={selectedConversation?._id}
         />
