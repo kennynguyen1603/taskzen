@@ -45,11 +45,11 @@ export const useNotification = () => {
 
     // Lắng nghe sự kiện nhận thông báo mới
     const handleNewNotification = (notification: Notification) => {
-      console.log('[DEBUG] Received new notification:', notification);
+      // console.log('[DEBUG] Received new notification:', notification);
 
       // Xử lý thông báo dựa trên loại
       if (notification.type === 'project') {
-        console.log('[DEBUG] Received project notification');
+        // console.log('[DEBUG] Received project notification');
         // Có thể thêm xử lý đặc biệt cho thông báo project nếu cần
       }
 
@@ -62,11 +62,11 @@ export const useNotification = () => {
           // Kiểm tra xem thông báo đã tồn tại chưa
           const exists = oldData.notifications.some(n => n._id === notification._id);
           if (exists) {
-            console.log('[DEBUG] Notification already exists, not adding');
+            // console.log('[DEBUG] Notification already exists, not adding');
             return oldData;
           }
 
-          console.log('[DEBUG] Adding new notification to cache');
+          // console.log('[DEBUG] Adding new notification to cache');
           return {
             ...oldData,
             notifications: [notification, ...oldData.notifications],
@@ -80,7 +80,7 @@ export const useNotification = () => {
         ['unread-count'],
         (oldData) => {
           if (!oldData) return { count: 1 };
-          console.log(`[DEBUG] Updating unread count: ${oldData.count} -> ${oldData.count + 1}`);
+          // console.log(`[DEBUG] Updating unread count: ${oldData.count} -> ${oldData.count + 1}`);
           return { count: oldData.count + 1 };
         }
       );
@@ -114,17 +114,17 @@ export const useNotification = () => {
       queryKey: ['notifications', page, limit],
       queryFn: async (): Promise<NotificationsResponse> => {
         try {
-          console.log(`[DEBUG] Calling API: ${API_PATH}?page=${page}&limit=${limit}`);
+          // console.log(`[DEBUG] Calling API: ${API_PATH}?page=${page}&limit=${limit}`);
           const response = await http.get(`${API_PATH}?page=${page}&limit=${limit}`);
-          console.log('[DEBUG] Notifications API response:', response);
+          // console.log('[DEBUG] Notifications API response:', response);
 
           if (response.payload) {
-            console.log('[DEBUG] Notifications payload:', response.payload.result);
+            // console.log('[DEBUG] Notifications payload:', response.payload.result);
             return response.payload.result as NotificationsResponse;
           }
           return { notifications: [], total: 0, page, limit };
         } catch (error) {
-          console.error('[DEBUG] Error fetching notifications:', error);
+          // console.error('[DEBUG] Error fetching notifications:', error);
           return { notifications: [], total: 0, page, limit };
         }
       },

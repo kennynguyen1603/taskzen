@@ -13,6 +13,7 @@ export default function ListenLogoutSocket() {
   const disconnectSocket = useAppStore((state) => state.disconnectSocket)
   const socket = useAppStore((state) => state.socket)
   useEffect(() => {
+    if (!pathname) return
     if (UNAUTHENTICATED_PATH.includes(pathname)) return
     async function onLogout() {
       if (isPending) return
