@@ -387,7 +387,17 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
   // Leave call room
   const leaveCallRoom = useCallback(() => {
     if (!socket || !roomId) return
-    socket.emit('leave_call', { room_id: roomId })
+    
+    try {
+      if (socket.connected) {
+        console.log('Emitting leave_call for room:', roomId)
+        socket.emit('leave_call', { room_id: roomId })
+      } else {
+        console.log('Socket not connected, cannot emit leave_call')
+      }
+    } catch (error) {
+      console.error('Error leaving call room:', error)
+    }
   }, [socket, roomId])
 
   // Initialize call
@@ -530,14 +540,26 @@ export const useWebRTC = ({ roomId, localUserId, onCallEnded }: UseWebRTCProps) 
     peerConnectionsRef.current.clear()
     setRemoteStreams(new Map())
 
-    // Always notify the server that you're leaving the call
-    if (roomId && socket && socket.connected) {
-      console.log('Emitting leave_call for roomId:', roomId)
-      socket.emit('leave_call', { room_id: roomId })
-      // Additional failsafe: emit a direct call ended event
-      socket.emit('end_call', { room_id: roomId })
-    } else {
-      console.log('Cannot emit leave_call - roomId or socket unavailable')
+    // Only attempt to send leave_call event if we have all necessary pieces
+    try {
+      if (roomId && socket) {
+        if (socket.connected) {
+          console.log('Emitting leave_call for roomId:', roomId)
+          socket.emit('leave_call', { room_id: roomId })
+          // Additional failsafe: emit a direct call ended event
+          socket.emit('end_call', { room_id: roomId })
+        } else {
+          console.log('Socket not connected for leave_call, room:', roomId)
+        }
+      } else {
+        console.log('Cannot emit leave_call - roomId or socket unavailable', { 
+          hasRoomId: !!roomId, 
+          hasSocket: !!socket, 
+          isConnected: socket?.connected 
+        })
+      }
+    } catch (error) {
+      console.error('Error when attempting to emit leave_call:', error)
     }
 
     setActiveConversationId(null)
