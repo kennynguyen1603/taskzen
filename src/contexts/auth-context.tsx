@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('auth_token')
+        const token = localStorage.getItem('access_token')
         console.log('Token from storage:', token ? 'exists' : 'not found')
 
         if (!token) {
@@ -58,11 +58,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(data.user)
         } else {
           // Token không hợp lệ, xóa khỏi localStorage
-          localStorage.removeItem('auth_token')
+          localStorage.removeItem('access_token')
         }
       } catch (error) {
         console.error('Auth verification error:', error)
-        localStorage.removeItem('auth_token')
+        localStorage.removeItem('access_token')
       } finally {
         setLoading(false)
       }
@@ -74,14 +74,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login handler
   const login = (token: string, userData: User) => {
     console.log('Login called with token and user data')
-    localStorage.setItem('auth_token', token)
+    localStorage.setItem('access_token', token)
     setUser(userData)
   }
 
   // Logout handler
   const logout = () => {
     console.log('Logout called')
-    localStorage.removeItem('auth_token')
+    localStorage.removeItem('access_token')
     setUser(null)
     router.push('/login')
   }
