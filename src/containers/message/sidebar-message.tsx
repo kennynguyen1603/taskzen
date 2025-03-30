@@ -20,7 +20,7 @@ interface SidebarProps {
   isCollapsed: boolean
   chats: {
     id: string
-    participants: { name: string; avatar_url: string; announcement?: string }
+    participants: { name: string; avatar_url: string; announcement?: string; status: string }
     name: string
     variant: 'secondary' | 'ghost'
     is_group: boolean
@@ -45,7 +45,7 @@ const getOtherUserName = (conversationName: Record<string, string>, currentName:
 }
 
 export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: SidebarProps) {
-  console.log(chats)
+  // console.log(chats)
   const { user } = useContext(UserContext) || {}
   const router = useRouter()
   const { setSelectedConversation, setCurrentConversationId } = useChatStore()
@@ -53,16 +53,25 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
   const handleSelectConversation = (chat: {
     id: string
     name: string | Record<string, string>
-    participants: { name: string; avatar_url: string; announcement?: string }
+    participants: { name: string; avatar_url: string; announcement?: string; status: string }
     is_group: boolean
     currentUserId?: string
   }) => {
+    // If already on this conversation, do nothing
+    if (chat.id === selectedUserId) {
+      console.log('Already on this conversation, no navigation needed')
+      return
+    }
+
+    // console.log('Selecting conversation:', chat.id)
+
+    // Create the conversation object for the store
     const conversation = {
       _id: chat.id,
       participants: {
         name: chat.participants.name,
         avatar_url: chat.participants.avatar_url,
-        status: 'offline'
+        status: chat.participants.status
       },
       conversation_name: typeof chat.name === 'string' ? chat.name : getOtherUserName(chat.name, user?.username),
       last_message: {
@@ -74,9 +83,18 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
       updated_at: new Date().toISOString()
     }
 
+    // Set data in store first to ensure UI updates immediately
     setSelectedConversation(conversation)
     setCurrentConversationId(chat.id)
-    router.push(`/dashboard/message/${chat.id}`)
+
+    // Wrap in setTimeout to avoid navigation during React render cycle
+    setTimeout(() => {
+      // Use router.replace with more options to ensure proper client-side navigation
+      // without full page refresh
+      router.replace(`/dashboard/message/${chat.id}`, {
+        scroll: false // Prevent scroll jump
+      })
+    }, 0)
   }
 
   return (

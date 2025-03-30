@@ -13,13 +13,12 @@ import { MessageResType } from '@/schema-validations/message.schema'
 import { Loader2 } from 'lucide-react'
 import { useSocket } from '@/hooks/use-socket'
 import { UserContext } from '@/contexts/profile-context'
-import { CallSocketHandler } from '@/components/call-socket-handler'
 import { useDebouncedCallback } from 'use-debounce'
 
 export function Chat() {
-  const { conversation_id } = useParams()
+  const params = useParams()
+  const conversation_id = params?.conversation_id as string
   const queryClient = useQueryClient()
-  const router = useRouter()
   const {
     setMessages,
     addMessage,
@@ -63,53 +62,67 @@ export function Chat() {
     { maxWait: 1000 }
   )
 
-  // Kiểm tra trạng thái đăng nhập
-  useEffect(() => {
-    // Kiểm tra token
-    const token = localStorage.getItem('auth_token')
-    console.log('Chat component - auth token exists:', !!token)
+  // Kiểm tra trạng thái đăng nhập - simplified approach to avoid loops
+  const hasVerifiedRef = useRef(false)
 
-    if (!token) {
-      console.log('No token found, redirecting to login')
-      router.push('/login')
+  useEffect(() => {
+    // Avoid token verification on every render by using a ref
+    if (hasVerifiedRef.current) {
+      console.log('Token already verified in this component instance, skipping')
       return
     }
 
-    // Kiểm tra token hợp lệ (tùy chọn)
-    const verifyToken = async () => {
-      try {
-        const response = await fetch('/api/auth/verify', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
+    // Mark as verified so we don't check again in this instance
+    hasVerifiedRef.current = true
 
-        const data = await response.json()
-        console.log('Token verification in Chat:', data)
+    // Simple token check - don't redirect automatically from Chat component
+    const token = localStorage.getItem('access_token')
+    console.log('Chat component - auth token exists:', !!token)
 
-        if (!data.success) {
-          console.log('Invalid token, redirecting to login')
-          localStorage.removeItem('auth_token')
-          router.push('/login')
-        }
-      } catch (error) {
-        console.error('Error verifying token in Chat:', error)
-      }
+    if (!token) {
+      console.log('No token found, but not redirecting from Chat component')
+      // Don't redirect here - let the auth middleware/layout handle redirect
+      return
     }
 
-    verifyToken()
-  }, [router])
+    // We can still record that we've verified once in this session
+    // but don't use it to control verification flow
+    sessionStorage.setItem('chat_token_verified', 'true')
+  }, [])
 
-  // 1. Khai báo markMessagesAsRead trước để sử dụng trong các hooks sau
+  // Modify markMessagesAsRead to work with individual messages
   const markMessagesAsRead = useCallback(async () => {
-    if (markingAsReadError || !selectedConversation?._id) return
+    if (markingAsReadError || !selectedConversation?._id || !user?._id) return
 
     try {
       setIsMarkingAsRead(true)
-      const response = await messageApiRequest.markMessagesAsRead(selectedConversation._id)
-      if (response) {
-        setLastReadTimestamp(new Date().toISOString())
+
+      // Get unread messages not sent by current user
+      const unreadMessages = messages.filter(
+        (msg) => !msg.is_read && msg.sender?._id !== user._id && msg._id && !msg._id.toString().startsWith('temp_')
+      )
+
+      if (unreadMessages.length === 0) {
+        setIsMarkingAsRead(false)
+        return
       }
+
+      // Mark each unread message as read
+      for (const message of unreadMessages) {
+        await messageApiRequest.markMessagesAsRead(selectedConversation._id, message._id)
+      }
+
+      setLastReadTimestamp(new Date().toISOString())
+
+      // Update local messages to show as read
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => {
+          if (!msg.is_read && msg.sender?._id !== user._id) {
+            return { ...msg, is_read: true, read_by_users: [...(msg.read_by_users || []), user._id] }
+          }
+          return msg
+        })
+      )
     } catch (error) {
       console.error('Error marking messages as read:', error)
       setMarkingAsReadError(true)
@@ -119,7 +132,7 @@ export function Chat() {
     } finally {
       setIsMarkingAsRead(false)
     }
-  }, [selectedConversation?._id, markingAsReadError, setLastReadTimestamp])
+  }, [selectedConversation?._id, markingAsReadError, setLastReadTimestamp, messages, user?._id, setMessages])
 
   // 2. Khai báo handleSendMessage sớm
   const handleSendMessage = useCallback(
@@ -239,47 +252,31 @@ export function Chat() {
 
   // 3. Khai báo loadMessages sau các hàm xử lý messages
   const loadMessages = useCallback(
-    async (forceConversationId?: string) => {
+    async (forceConversationId?: string, forceCursor?: string) => {
       const targetConversationId = forceConversationId || selectedConversation?._id
+      // Sử dụng forceCursor nếu được cung cấp, nếu không thì lấy từ state
+      const cursor = forceCursor || pagination?.nextCursor
 
-      if (!targetConversationId) {
-        console.log('Missing conversation ID, cannot load messages')
-        return
-      }
+      if (!targetConversationId) return
 
       // QUAN TRỌNG: Kiểm tra xem có đang tải tin nhắn cho conversation này không
-      if (isLoadingRef.current) {
-        console.log('Already loading messages, skipping redundant request')
-        return
-      }
+      if (isLoadingRef.current) return
 
       // Kiểm tra xem đã tải tin nhắn cho conversation này rồi hay chưa
-      if (!pagination?.nextCursor && loadedConversationsRef.current.has(targetConversationId)) {
-        console.log('Messages already loaded for this conversation, skipping')
-        return
-      }
-
-      console.log('Loading messages for conversation:', targetConversationId)
+      if (!cursor && loadedConversationsRef.current.has(targetConversationId)) return
 
       try {
         isLoadingRef.current = true // Đánh dấu đang tải
         setIsLoading(true)
 
         // Dùng các tham số phù hợp với API backend
-        const response = await messageApiRequest.getMessages(
-          targetConversationId,
-          pagination?.nextCursor || undefined,
-          10
-        )
+        const response = await messageApiRequest.getMessages(targetConversationId, cursor || undefined, 10)
 
         // Kiểm tra xem conversation_id có thay đổi trong quá trình tải hay không
-        if (!forceConversationId && targetConversationId !== selectedConversation?._id) {
-          console.log('Conversation changed during loading, discarding results')
-          return
-        }
+        if (!forceConversationId && targetConversationId !== selectedConversation?._id) return
 
         // Đánh dấu đã tải thành công
-        if (!pagination?.nextCursor) {
+        if (!cursor) {
           loadedConversationsRef.current.add(targetConversationId)
         }
 
@@ -287,7 +284,15 @@ export function Chat() {
         const apiMessages = response?.payload?.data?.messages || []
         const validMessages = Array.isArray(apiMessages) ? apiMessages : []
 
-        console.log(`Received ${validMessages.length} messages for conversation ${targetConversationId}`)
+        if (validMessages.length === 0) {
+          // Ensure we mark pagination as having no more messages
+          setPagination({
+            hasMore: false,
+            nextCursor: null,
+            loadMore: false
+          })
+          return
+        }
 
         // Chuẩn hóa cấu trúc dữ liệu từ API để tương thích với UI
         const normalizedMessages = validMessages.map((msg: any) => ({
@@ -299,17 +304,23 @@ export function Chat() {
         }))
 
         // Xử lý tin nhắn mới tải về
-        if (pagination?.nextCursor) {
+        if (cursor) {
           // Thêm tin nhắn cũ vào đầu mảng
           setMessages((prevMessages: any[]) => {
             const existingIds = new Set(prevMessages.map((msg) => msg._id))
             const newMessages = normalizedMessages.filter((msg) => !existingIds.has(msg._id))
 
-            return [...newMessages, ...prevMessages].sort((a, b) => {
+            // If no new messages were found, don't update the state
+            if (newMessages.length === 0) return prevMessages
+
+            // Sắp xếp tin nhắn theo thời gian tăng dần (tin nhắn cũ lên trên)
+            const combinedMessages = [...newMessages, ...prevMessages].sort((a, b) => {
               const timeA = new Date(a.created_at || a.createdAt).getTime()
               const timeB = new Date(b.created_at || b.createdAt).getTime()
               return timeA - timeB
             })
+
+            return combinedMessages
           })
         } else {
           // Đặt tin nhắn mới cho lần đầu load
@@ -332,8 +343,6 @@ export function Chat() {
           loadMore: false
         })
       } catch (error) {
-        console.error('Error loading messages for conversation', targetConversationId, error)
-
         // Reset pagination state on error
         setPagination({
           ...pagination,
@@ -346,6 +355,16 @@ export function Chat() {
     },
     [selectedConversation?._id, pagination?.nextCursor, setMessages, setPagination, setIsLoading]
   )
+
+  // Add a specific function to load older messages that can be called directly
+  const loadOlderMessages = useCallback(() => {
+    if (pagination?.nextCursor) {
+      console.log('⭐⭐⭐ Directly calling loadMessages with cursor:', pagination.nextCursor)
+      loadMessages(undefined, pagination.nextCursor)
+    } else {
+      console.log('No nextCursor available, cannot load older messages')
+    }
+  }, [loadMessages, pagination?.nextCursor])
 
   // Xử lý tin nhắn mới từ socket
   const handleNewMessage = useCallback(
@@ -515,26 +534,37 @@ export function Chat() {
     }
   }, [selectedConversation, markMessagesAsRead, markingAsReadError])
 
-  // Sửa lại useEffect cho pagination
+  // Sửa lại useEffect cho pagination - Đơn giản hóa
   useEffect(() => {
-    if (!selectedConversation?._id || !pagination?.loadMore || !pagination?.nextCursor || isLoadingRef.current) return
+    // Only run if we have a conversation and loadMore is true
+    if (selectedConversation?._id && pagination?.loadMore && pagination?.nextCursor) {
+      // Reset the loadMore flag immediately to prevent multiple loads
+      setPagination({
+        hasMore: pagination.hasMore,
+        nextCursor: pagination.nextCursor,
+        loadMore: false
+      })
 
-    console.log('Loading more messages with nextCursor:', pagination.nextCursor)
+      // Directly call our loadOlderMessages function
+      loadOlderMessages()
+    }
+  }, [selectedConversation?._id, pagination, loadOlderMessages, setPagination])
 
-    // Đặt loadMore về false trước khi gọi API để tránh gọi nhiều lần
-    setPagination({
-      hasMore: pagination.hasMore,
-      nextCursor: pagination.nextCursor,
-      loadMore: false
-    })
+  // Handle visibility change to potentially refresh messages
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedConversation?._id) {
+        console.log('Tab became visible, checking for new messages')
+        // Maybe we could refresh messages here or update read status
+        markMessagesAsRead()
+      }
+    }
 
-    // Dùng setTimeout để tránh nhiều lần gọi liên tiếp
-    const timeoutId = setTimeout(() => {
-      loadMessages()
-    }, 100)
-
-    return () => clearTimeout(timeoutId)
-  }, [selectedConversation?._id, pagination?.loadMore, pagination?.nextCursor, loadMessages, setPagination])
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [selectedConversation?._id, markMessagesAsRead])
 
   if (isLoadingConversation) {
     return (
@@ -555,8 +585,12 @@ export function Chat() {
   return (
     <div className='flex flex-col h-full border rounded-md overflow-hidden bg-background'>
       <ChatTopbar selectedUser={selectedConversation} />
-      <ChatList selectedUser={selectedConversation} sendMessage={handleSendMessage} isMobile={false} />
-      <CallSocketHandler />
+      <ChatList
+        selectedUser={selectedConversation}
+        sendMessage={handleSendMessage}
+        isMobile={false}
+        loadOlderMessages={loadOlderMessages}
+      />
     </div>
   )
 }

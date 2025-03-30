@@ -22,10 +22,10 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
     const currentUserId = user?._id
 
     // Lưu người gửi và người nhận để debug
-    console.log(
-      `[MSG ${message._id?.substring(0, 6)}] Compare IDs:`,
-      JSON.stringify({ senderId, currentUserId }).substring(0, 100)
-    )
+    // console.log(
+    //   `[MSG ${message._id?.substring(0, 6)}] Compare IDs:`,
+    //   JSON.stringify({ senderId, currentUserId }).substring(0, 100)
+    // )
 
     return senderId === currentUserId
   }, [message, user?._id])
@@ -148,21 +148,26 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
   const messageId = `message-${message._id}`
 
   // Thêm debug utility function
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[MSG ${message._id?.substring(0, 6)}] isOwn=${isOwn}`, {
-        messageId: message._id,
-        senderId: message.sender_id || (message.sender && message.sender._id) || message.senderId,
-        user_id: user?._id
-      })
-    }
-  }, [message, user, isOwn])
+  // useEffect(() => {
+  //   if (process.env.NODE_ENV === 'development') {
+  //     console.log(`[MSG ${message._id?.substring(0, 6)}] isOwn=${isOwn}`, {
+  //       messageId: message._id,
+  //       senderId: message.sender_id || (message.sender && message.sender._id) || message.senderId,
+  //       user_id: user?._id
+  //     })
+  //   }
+  // }, [message, user, isOwn])
 
   // Render normal message box
   const renderMessageBox = () => {
     return (
       <div className={cn('flex w-full', isOwn ? 'justify-end' : 'justify-start')}>
-        <div className={cn('p-3 rounded-lg max-w-[75%]', isOwn ? 'bg-sky-500 text-white' : 'bg-gray-100')}>
+        <div
+          className={cn(
+            'p-3 rounded-lg max-w-[75%]',
+            isOwn ? 'bg-sky-500 text-white' : 'dark:bg-gray-700 dark:text-gray-100 bg-gray-100 text-gray-900'
+          )}
+        >
           {/* Tên người gửi khi cần */}
           {!isOwn && showAvatar(message, [], 0) && sender && (
             <div className='font-semibold mb-1 text-sm'>{sender.name || sender.username || 'Người dùng'}</div>
@@ -173,7 +178,9 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
 
           {/* Thời gian và trạng thái đã đọc */}
           <div className={cn('flex items-center mt-1 space-x-1', isOwn ? 'justify-end' : 'justify-start')}>
-            <span className='text-xs text-opacity-70'>{formattedTimestamp}</span>
+            <span className={cn('text-xs', isOwn ? 'text-white/70' : 'text-gray-500 dark:text-gray-300/70')}>
+              {formattedTimestamp}
+            </span>
 
             {/* Hiển thị trạng thái đã gửi/đã đọc cho tin nhắn của mình */}
             {isOwn && (
@@ -193,10 +200,10 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
       <div className={cn('flex w-full', isOwn ? 'justify-end' : 'justify-start')}>
         <div
           className={cn(
-            'p-4 rounded-xl flex items-center max-w-[80%] shadow-md border border-white/10',
+            'p-4 rounded-xl flex items-center max-w-[80%] shadow-md border',
             isOwn
-              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-white/10'
+              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-white/10 dark:border-white/20'
           )}
         >
           <div className='rounded-full bg-white/25 p-2 mr-3 flex-shrink-0'>
@@ -244,8 +251,8 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
               className='object-cover'
             />
           ) : (
-            <div className='w-full h-full bg-gray-200 flex items-center justify-center'>
-              <span className='text-gray-500 text-xs'>
+            <div className='w-full h-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center'>
+              <span className='text-gray-500 dark:text-gray-200 text-xs'>
                 {(sender?.name || sender?.username)?.charAt(0).toUpperCase() || '?'}
               </span>
             </div>
