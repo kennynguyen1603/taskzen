@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useContext, useEffect, useRef } from 'react'
 import { useSocket } from '@/hooks/use-socket'
 import useCallStore from '@/hooks/use-call-store'
@@ -10,30 +12,26 @@ export const CallSocketHandler = () => {
   const { toast } = useToast()
   const [retryCount, setRetryCount] = useState(0)
   const maxRetries = 5
+  const isComponentMounted = useRef(true)
 
-  const {
-    setIncomingCall,
-    isIncomingCall,
-    incomingCallData,
-    clearCallState,
-    roomId,
-    rejectCall,
-    addParticipant,
-    updateParticipantStatus,
-    removeParticipant,
-    isCallActive
-  } = useCallStore()
+  const { setIncomingCall, isIncomingCall, incomingCallData, clearCallState } = useCallStore()
 
   // Create ref for ringtone audio
   const ringtoneRef = useRef<HTMLAudioElement | null>(null)
 
   // Initialize audio when component mounts
   useEffect(() => {
-    ringtoneRef.current = new Audio('/sounds/ringtone.mp3')
-    ringtoneRef.current.loop = true
+    isComponentMounted.current = true
+
+    // Initialize ringtone
+    if (typeof window !== 'undefined') {
+      ringtoneRef.current = new Audio('/sounds/ringtone.mp3')
+      ringtoneRef.current.loop = true
+    }
 
     // Cleanup on unmount
     return () => {
+      isComponentMounted.current = false
       cleanupRingtone()
       if (ringtoneRef.current) {
         ringtoneRef.current = null
@@ -51,10 +49,13 @@ export const CallSocketHandler = () => {
 
   // Handle incoming call
   const handleIncomingCall = (data: any) => {
+    // Safety check - if the component is unmounted, don't continue
+    if (!isComponentMounted.current) return
+
     console.log('Incoming call:', data)
 
     // Don't accept calls not intended for this user
-    if (data.receiver_id !== user?._id) {
+    if (!user?._id || data.receiver_id !== user._id) {
       console.warn('Received call for another user, ignoring')
       return
     }
@@ -81,6 +82,8 @@ export const CallSocketHandler = () => {
 
         // Auto-reject call after 30 seconds if not answered
         setTimeout(() => {
+          if (!isComponentMounted.current) return
+
           if (isIncomingCall && incomingCallData?.room_id === data.room_id) {
             console.log('Call timed out after 30 seconds, auto-rejecting')
             if (socket && socket.connected) {
@@ -98,6 +101,8 @@ export const CallSocketHandler = () => {
 
   // Handle call ended
   const handleCallEnded = (data: any) => {
+    if (!isComponentMounted.current) return
+
     console.log('Call ended:', data)
     cleanupRingtone()
     clearCallState()
@@ -111,6 +116,8 @@ export const CallSocketHandler = () => {
 
   // Handle call rejected
   const handleCallRejected = (data: any) => {
+    if (!isComponentMounted.current) return
+
     console.log('Call rejected:', data)
     cleanupRingtone()
     clearCallState()
@@ -124,6 +131,8 @@ export const CallSocketHandler = () => {
 
   // Handle user busy
   const handleUserBusy = () => {
+    if (!isComponentMounted.current) return
+
     console.log('User busy')
     cleanupRingtone()
     clearCallState()
@@ -137,6 +146,8 @@ export const CallSocketHandler = () => {
 
   // Handle user already in call
   const handleUserAlreadyInCall = () => {
+    if (!isComponentMounted.current) return
+
     console.log('User already in call')
     cleanupRingtone()
     clearCallState()
@@ -148,11 +159,31 @@ export const CallSocketHandler = () => {
     })
   }
 
+  // Attempt socket initialization when component mounts
+  useEffect(() => {
+    if (!user?._id) return
+
+    // Add a small delay before checking if we need to initialize
+    const timer = setTimeout(() => {
+      if (!socket && isComponentMounted.current) {
+        console.log('Attempting to initialize socket connection...')
+        // This will trigger the useSocket hook to initialize the connection
+        setRetryCount((prev) => prev + 1)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [user?._id, socket])
+
   // Set up socket listeners when socket is connected
   useEffect(() => {
     if (!socket || !user?._id) {
+      console.log('Socket not available:', !!socket)
+      console.log('User ID available:', !!user?._id)
       if (retryCount < maxRetries) {
         const timer = setTimeout(() => {
+          if (!isComponentMounted.current) return
+
           console.log(`Socket not available, retrying (${retryCount + 1}/${maxRetries})...`)
           setRetryCount((prev) => prev + 1)
         }, 2000)
@@ -174,14 +205,16 @@ export const CallSocketHandler = () => {
     socket.on('user_busy', handleUserBusy)
     socket.on('user_already_in_call', handleUserAlreadyInCall)
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when dependencies change
     return () => {
-      console.log('Removing call socket listeners')
-      socket.off('incoming_call', handleIncomingCall)
-      socket.off('call_ended', handleCallEnded)
-      socket.off('call_rejected', handleCallRejected)
-      socket.off('user_busy', handleUserBusy)
-      socket.off('user_already_in_call', handleUserAlreadyInCall)
+      if (socket) {
+        console.log('Removing call socket listeners')
+        socket.off('incoming_call', handleIncomingCall)
+        socket.off('call_ended', handleCallEnded)
+        socket.off('call_rejected', handleCallRejected)
+        socket.off('user_busy', handleUserBusy)
+        socket.off('user_already_in_call', handleUserAlreadyInCall)
+      }
     }
   }, [socket, user?._id, retryCount])
 
@@ -194,5 +227,6 @@ export const CallSocketHandler = () => {
     }
   }, [isIncomingCall])
 
+  // Don't render anything
   return null
 }
