@@ -1,6 +1,6 @@
 'use client'
 import React, { useId } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Particles, { initParticlesEngine } from '@tsparticles/react'
 import type { Container, SingleOrMultiple } from '@tsparticles/engine'
 import { loadSlim } from '@tsparticles/slim'
@@ -21,23 +21,49 @@ type ParticlesProps = {
 export const SparklesCore = (props: ParticlesProps) => {
   const { id, className, background, minSize, maxSize, speed, particleColor, particleDensity } = props
   const [init, setInit] = useState(false)
+  const isMounted = useRef(false)
+  const containerRef = useRef<Container | null>(null)
+  const controls = useAnimation()
+
   useEffect(() => {
     initParticlesEngine(async (engine) => {
       await loadSlim(engine)
     }).then(() => {
       setInit(true)
     })
-  }, [])
-  const controls = useAnimation()
 
-  const particlesLoaded = async (container?: Container) => {
-    if (container) {
+    isMounted.current = true
+
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    // Only start animation if component is mounted and container is ready
+    if (isMounted.current && containerRef.current) {
       controls.start({
         opacity: 1,
         transition: {
           duration: 1
         }
       })
+    }
+  }, [init, controls])
+
+  const particlesLoaded = async (container?: Container) => {
+    if (container) {
+      containerRef.current = container
+
+      // Only start animation if component is already mounted
+      if (isMounted.current) {
+        controls.start({
+          opacity: 1,
+          transition: {
+            duration: 1
+          }
+        })
+      }
     }
   }
 
