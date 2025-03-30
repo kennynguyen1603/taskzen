@@ -86,19 +86,24 @@ const useChatStore = create<State & Actions>()(
 
       addMessage: (message) =>
         set((state) => ({
-          messages: [...state.messages, message]
+          messages: [...state.messages, message],
+          messagesFetched: true
         })),
 
       handleNewMessage: (message) => {
         const { selectedConversation, messages } = get()
         if (selectedConversation?._id === message.conversation_id) {
           set({
-            messages: [...messages, message]
+            messages: [...messages, message],
+            messagesFetched: true
           })
         }
       },
 
-      setSelectedConversation: (conversation) => set({ selectedConversation: conversation }),
+      setSelectedConversation: (conversation) => set({ 
+        selectedConversation: conversation,
+        selectedConversationId: conversation?._id || null
+      }),
 
       setIsLoading: (isLoading) => set({ isLoading }),
 
@@ -111,7 +116,12 @@ const useChatStore = create<State & Actions>()(
       setLastReadTimestamp: (timestamp) => set({ lastReadTimestamp: timestamp }),
 
       setPagination: (pagination) => {
-        set({ pagination })
+        console.log('⭐ setPagination called with:', pagination)
+        set((state) => {
+          console.log('⭐ Current pagination state:', state.pagination)
+          console.log('⭐ New pagination state:', pagination)
+          return { pagination }
+        })
       },
 
       setSelectedConversationId: (id) => {
@@ -135,10 +145,39 @@ const useChatStore = create<State & Actions>()(
     {
       name: 'chat-storage', // unique name for localStorage
       partialize: (state) => ({
-        // chỉ lưu những state cần thiết
+        // Save more data to ensure persistence across navigation
         selectedConversation: state.selectedConversation,
-        currentConversationId: state.currentConversationId
-      })
+        currentConversationId: state.currentConversationId,
+        selectedConversationId: state.selectedConversationId,
+        lastReadTimestamp: state.lastReadTimestamp,
+        // Don't save messages to avoid huge localStorage entries
+      }),
+      // Use localStorage for persistence
+      storage: {
+        getItem: (name) => {
+          try {
+            const value = localStorage.getItem(name);
+            return value ? JSON.parse(value) : null;
+          } catch (error) {
+            console.error('Error retrieving chat state from storage:', error);
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value));
+          } catch (error) {
+            console.error('Error saving chat state to storage:', error);
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch (error) {
+            console.error('Error removing chat state from storage:', error);
+          }
+        },
+      },
     }
   )
 )
