@@ -47,12 +47,12 @@ export default function NotificationsSheet() {
   const totalNotifications = notificationsData?.total || 0
   const unreadCount = unreadCountData?.count || 0
 
-  // Debug sau khi xử lý dữ liệu
-  useEffect(() => {
-    console.log('[DEBUG] Processed notifications:', notifications)
-    console.log('[DEBUG] Total notifications:', totalNotifications)
-    console.log('[DEBUG] Unread count:', unreadCount)
-  }, [notifications, totalNotifications, unreadCount])
+  // // Debug sau khi xử lý dữ liệu
+  // useEffect(() => {
+  //   console.log('[DEBUG] Processed notifications:', notifications)
+  //   console.log('[DEBUG] Total notifications:', totalNotifications)
+  //   console.log('[DEBUG] Unread count:', unreadCount)
+  // }, [notifications, totalNotifications, unreadCount])
 
   // Thêm xử lý khi mở/đóng sheet
   const handleOpenChange = (open: boolean) => {
@@ -64,10 +64,10 @@ export default function NotificationsSheet() {
   }
 
   const handleMarkAllAsRead = () => {
-    console.log('[DEBUG] Handling mark all as read')
+    // console.log('[DEBUG] Handling mark all as read')
     markAllAsRead.mutate(undefined, {
       onSuccess: () => {
-        console.log('[DEBUG] All notifications marked as read successfully')
+        // console.log('[DEBUG] All notifications marked as read successfully')
         // Cập nhật state local nếu cần
         setPage(1) // Reset về trang đầu tiên để đảm bảo hiển thị đúng
       },
@@ -82,10 +82,10 @@ export default function NotificationsSheet() {
   }
 
   const handleDeleteAllNotifications = () => {
-    console.log('[DEBUG] Handling delete all notifications')
+    // console.log('[DEBUG] Handling delete all notifications')
     deleteAllNotifications.mutate(undefined, {
       onSuccess: () => {
-        console.log('[DEBUG] All notifications deleted successfully')
+        // console.log('[DEBUG] All notifications deleted successfully')
         // Đóng sheet sau khi xóa thành công
         setIsOpen(false)
       },
