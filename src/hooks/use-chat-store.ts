@@ -100,7 +100,7 @@ const useChatStore = create<State & Actions>()(
         }
       },
 
-      setSelectedConversation: (conversation) => set({ 
+      setSelectedConversation: (conversation) => set({
         selectedConversation: conversation,
         selectedConversationId: conversation?._id || null
       }),
@@ -156,8 +156,11 @@ const useChatStore = create<State & Actions>()(
       storage: {
         getItem: (name) => {
           try {
-            const value = localStorage.getItem(name);
-            return value ? JSON.parse(value) : null;
+            if (typeof window !== 'undefined') {
+              const value = localStorage.getItem(name);
+              return value ? JSON.parse(value) : null;
+            }
+            return null;
           } catch (error) {
             console.error('Error retrieving chat state from storage:', error);
             return null;
@@ -165,14 +168,18 @@ const useChatStore = create<State & Actions>()(
         },
         setItem: (name, value) => {
           try {
-            localStorage.setItem(name, JSON.stringify(value));
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(name, JSON.stringify(value));
+            }
           } catch (error) {
             console.error('Error saving chat state to storage:', error);
           }
         },
         removeItem: (name) => {
           try {
-            localStorage.removeItem(name);
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem(name);
+            }
           } catch (error) {
             console.error('Error removing chat state from storage:', error);
           }
