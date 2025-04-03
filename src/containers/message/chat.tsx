@@ -34,7 +34,8 @@ export function Chat() {
     messages,
     pagination,
     messagesFetched,
-    setSelectedConversationId
+    setSelectedConversationId,
+    resetMessagesFetched
   } = useChatStore()
   const createMessageMutation = useNewMessageMutation()
   const { socket } = useSocket()
@@ -51,6 +52,7 @@ export function Chat() {
   const [isConversationLoading, setIsConversationLoading] = useState(false)
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false)
   const [markingAsReadError, setMarkingAsReadError] = useState(false)
+  const [isPageRefresh, setIsPageRefresh] = useState(false)
 
   // Debounce function cho việc cập nhật sidebar
   const debouncedUpdateSidebar = useDebouncedCallback(
@@ -295,13 +297,26 @@ export function Chat() {
         }
 
         // Chuẩn hóa cấu trúc dữ liệu từ API để tương thích với UI
-        const normalizedMessages = validMessages.map((msg: any) => ({
-          ...msg,
-          body: msg.message_content,
-          createdAt: msg.created_at,
-          senderId: msg.sender?._id || msg.sender_id,
-          sender_id: msg.sender?._id || msg.sender_id
-        }))
+        const normalizedMessages = validMessages.map((msg: any) => {
+          // Normalize read_by_users field
+          let read_by_users: string[] = []
+          if (msg.read_by_users) {
+            if (Array.isArray(msg.read_by_users)) {
+              read_by_users = msg.read_by_users
+            } else if (typeof msg.read_by_users === 'object') {
+              read_by_users = Object.keys(msg.read_by_users)
+            }
+          }
+
+          return {
+            ...msg,
+            body: msg.message_content,
+            createdAt: msg.created_at,
+            senderId: msg.sender?._id || msg.sender_id,
+            sender_id: msg.sender?._id || msg.sender_id,
+            read_by_users: read_by_users
+          }
+        })
 
         // Xử lý tin nhắn mới tải về
         if (cursor) {
@@ -377,6 +392,16 @@ export function Chat() {
 
         const messageData = data.message || data
 
+        // Handle read_by_users that might be an object instead of array
+        let read_by_users: string[] = []
+        if (messageData.read_by_users) {
+          if (Array.isArray(messageData.read_by_users)) {
+            read_by_users = messageData.read_by_users
+          } else if (typeof messageData.read_by_users === 'object') {
+            read_by_users = Object.keys(messageData.read_by_users)
+          }
+        }
+
         const newMessage: MessageResType = {
           _id: messageData._id || Date.now().toString(),
           conversation_id: messageData.conversation_id,
@@ -389,7 +414,7 @@ export function Chat() {
             avatar_url: messageData.sender_avatar_url || ''
           },
           is_read: false,
-          read_by_users: [],
+          read_by_users: read_by_users,
           created_at: messageData.created_at || new Date().toISOString(),
           updated_at: messageData.updated_at || new Date().toISOString()
         }
@@ -416,6 +441,9 @@ export function Chat() {
 
     console.log('Conversation changed to:', conversation_id)
 
+    // Reset messagesFetched to ensure proper loading indicators
+    resetMessagesFetched()
+
     // Cập nhật currentConversationId
     setCurrentConversationId(conversation_id as string)
 
@@ -438,23 +466,79 @@ export function Chat() {
 
     // Lưu lại conversation_id hiện tại
     previousConversationId.current = conversation_id as string
-  }, [conversation_id, setCurrentConversationId, setMessages, setIsLoading, setPagination, currentConversationId])
+  }, [
+    conversation_id,
+    setCurrentConversationId,
+    setMessages,
+    setIsLoading,
+    setPagination,
+    currentConversationId,
+    resetMessagesFetched
+  ])
+
+  // Add a new effect to handle page refresh specifically
+  // This effect runs once on component mount to check if we need to reload data
+  useEffect(() => {
+    // Only run this effect once on mount
+    const isRefresh = !messagesFetched && currentConversationId && selectedConversation?._id
+
+    if (isRefresh) {
+      console.log('🔄 Detected page refresh with conversation already set from localStorage')
+      console.log('🔄 Conversation ID:', selectedConversation._id)
+      console.log('🔄 MessagesFetched state:', messagesFetched)
+
+      // Set page refresh state to trigger optimizations
+      setIsPageRefresh(true)
+
+      // Clear any potentially stale reference to loaded conversations
+      loadedConversationsRef.current = new Set<string>()
+
+      // Clear the cache for this conversation to force a fresh load
+      delete messageCache.current[selectedConversation._id]
+
+      // Set loading state
+      setIsLoading(true)
+
+      // Force refetch conversation data
+      queryClient.invalidateQueries({ queryKey: ['conversation', selectedConversation._id] })
+
+      // Force load messages for this conversation
+      setTimeout(() => {
+        loadMessages(selectedConversation._id)
+      }, 100)
+    }
+  }, [
+    messagesFetched,
+    currentConversationId,
+    selectedConversation,
+    setIsLoading,
+    loadMessages,
+    queryClient,
+    setIsPageRefresh
+  ])
 
   // Query để lấy thông tin conversation
   const { data: conversationData, isLoading: isLoadingConversation } = useQuery({
     queryKey: ['conversation', currentConversationId],
     queryFn: () => conversationApiRequest.getConversationById(currentConversationId as string),
-    enabled: !!currentConversationId && !selectedConversation,
-    staleTime: 30000,
-    refetchOnWindowFocus: false
+    enabled: !!currentConversationId,
+    staleTime: isPageRefresh ? 0 : 30000, // No stale time during page refresh
+    refetchOnWindowFocus: false,
+    refetchOnMount: true // Always refetch on mount
   })
 
   // Cập nhật selectedConversation khi có dữ liệu conversation
   useEffect(() => {
     if (conversationData?.payload?.data?.[0]) {
+      console.log('🔄 Conversation data loaded from API:', conversationData.payload.data[0]._id)
       setSelectedConversation(conversationData.payload.data[0])
+
+      // If this was a page refresh, after setting conversation, reset the flag
+      if (isPageRefresh) {
+        setIsPageRefresh(false)
+      }
     }
-  }, [conversationData, setSelectedConversation])
+  }, [conversationData, setSelectedConversation, isPageRefresh])
 
   // Xử lý socket events
   useEffect(() => {

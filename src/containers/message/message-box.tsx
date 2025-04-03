@@ -15,6 +15,18 @@ interface MessageBoxProps {
 const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) => {
   const { user } = useContext(UserContext) || {}
 
+  // Normalize read_by_users to ensure it's always an array
+  if (message.read_by_users && typeof message.read_by_users === 'object' && !Array.isArray(message.read_by_users)) {
+    // If it's an object (like {userId1: true, userId2: true}), convert to array of keys
+    console.log('Converting read_by_users from object to array:', message.read_by_users)
+    message.read_by_users = Object.keys(message.read_by_users)
+  }
+
+  // Ensure read_by_users is always an array, even if it's null or undefined
+  if (!message.read_by_users || !Array.isArray(message.read_by_users)) {
+    message.read_by_users = []
+  }
+
   // Xác định tin nhắn thuộc về người đang đăng nhập hay không
   const isOwn = useMemo(() => {
     // Lấy ID người gửi từ tất cả các nguồn có thể
@@ -77,11 +89,25 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
 
   // Kiểm tra xem tin nhắn có phải là thông tin cuộc gọi hay không
   const isCallMessage = useMemo(() => {
-    return (
-      message.message_content?.includes('room_id') &&
-      message.message_content?.includes('call_type') &&
-      message.message_content?.includes('status')
-    )
+    // Check if message_content is a string
+    if (typeof message.message_content === 'string') {
+      return (
+        message.message_content?.includes('room_id') &&
+        message.message_content?.includes('call_type') &&
+        message.message_content?.includes('status')
+      )
+    }
+
+    // Check if message_content is an object
+    if (message.message_content && typeof message.message_content === 'object') {
+      return (
+        'room_id' in message.message_content &&
+        'call_type' in message.message_content &&
+        'status' in message.message_content
+      )
+    }
+
+    return false
   }, [message.message_content])
 
   // Parse thông tin cuộc gọi nếu là tin nhắn cuộc gọi
@@ -92,8 +118,16 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
       let callData
       if (typeof message.message_content === 'string') {
         callData = JSON.parse(message.message_content)
-      } else {
+      } else if (message.message_content && typeof message.message_content === 'object') {
         callData = message.message_content
+      } else {
+        return null
+      }
+
+      // Verify required fields exist
+      if (!callData.room_id || !callData.call_type || !callData.status) {
+        console.error('Missing required call data fields', callData)
+        return null
       }
 
       return {
@@ -141,7 +175,23 @@ const MessageBox = ({ message, conversation, isRead = false }: MessageBoxProps) 
       return content
     }
 
-    return content
+    // Nếu là object, convert sang string để tránh lỗi React
+    if (content && typeof content === 'object') {
+      try {
+        return JSON.stringify(content)
+      } catch (error) {
+        console.error('Error stringifying message content:', error)
+        return '[Không thể hiển thị nội dung]'
+      }
+    }
+
+    // Trường hợp content là null hoặc undefined
+    if (content === null || content === undefined) {
+      return ''
+    }
+
+    // Các trường hợp khác, convert sang string
+    return String(content)
   }, [message.body, message.message_content])
 
   // Thêm id cho tin nhắn để có thể scroll tới khi cần

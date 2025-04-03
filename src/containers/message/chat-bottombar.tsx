@@ -19,9 +19,12 @@ interface ChatBottombarProps {
 const BottombarIcons = [{ icon: FileImage }, { icon: Paperclip }]
 
 export default function ChatBottombar({ onSendMessage, isLoading, selectedUser }: ChatBottombarProps) {
-  const { input, setInput } = useChatStore()
+  const { input, setInput, messagesFetched } = useChatStore()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [isSending, setIsSending] = useState(false)
+
+  // Check if we should disable input (if sending or messages are still loading)
+  const isDisabled = isSending || isLoading || !messagesFetched
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value)
@@ -179,9 +182,12 @@ export default function ChatBottombar({ onSendMessage, isLoading, selectedUser }
             ref={inputRef}
             onKeyDown={handleKeyPress}
             onChange={handleInputChange}
-            placeholder='Nhập tin nhắn...'
-            className='rounded-full border-slate-200 dark:border-slate-700 focus-visible:ring-0 focus-visible:ring-offset-0'
-            disabled={isSending || isLoading}
+            placeholder={!messagesFetched ? 'Đang tải tin nhắn...' : 'Nhập tin nhắn...'}
+            className={cn(
+              'rounded-full border-slate-200 dark:border-slate-700 focus-visible:ring-0 focus-visible:ring-offset-0',
+              !messagesFetched && 'bg-muted/50 text-muted-foreground'
+            )}
+            disabled={isDisabled}
           />
         </motion.div>
 
@@ -189,7 +195,7 @@ export default function ChatBottombar({ onSendMessage, isLoading, selectedUser }
           <Button
             className='h-9 w-9 rounded-full shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
             onClick={handleSend}
-            disabled={isSending || isLoading}
+            disabled={isDisabled}
             size='icon'
           >
             <SendHorizontal size={18} />
@@ -198,7 +204,7 @@ export default function ChatBottombar({ onSendMessage, isLoading, selectedUser }
           <Button
             className='h-9 w-9 rounded-full shrink-0 hover:bg-muted transition-colors'
             onClick={handleThumbsUp}
-            disabled={isSending || isLoading}
+            disabled={isDisabled}
             variant='ghost'
             size='icon'
           >

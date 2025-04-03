@@ -16,11 +16,24 @@ interface ChatTopbarProps {
   selectedUser: ConversationType
 }
 
+// Helper function to get other user's name from conversation name object
+const getOtherUserName = (conversationName: Record<string, string>, currentName: string | undefined) => {
+  if (!currentName) return 'Cuộc trò chuyện'
+  const otherUser = Object.entries(conversationName).find(([name]) => name !== currentName)
+  return otherUser ? otherUser[1] : 'Cuộc trò chuyện'
+}
+
 export const ChatTopbar: FC<ChatTopbarProps> = ({ selectedUser }) => {
   const [callDialogOpen, setCallDialogOpen] = useState(false)
   const { user } = useContext(UserContext) || {}
   const { toast } = useToast()
   const { initiateCall, joinCall, isIncomingCall, incomingCallData, setCallData, isCallActive } = useCallStore()
+
+  // Format the conversation name properly based on type
+  const displayName =
+    typeof selectedUser.conversation_name === 'object'
+      ? getOtherUserName(selectedUser.conversation_name, user?.username)
+      : selectedUser.conversation_name || 'Cuộc trò chuyện'
 
   const handleInitiateCall = async (callType: 'audio' | 'video') => {
     if (!user?._id) {
@@ -129,7 +142,7 @@ export const ChatTopbar: FC<ChatTopbarProps> = ({ selectedUser }) => {
       <ExpandableChatHeader>
         <div className='flex items-center gap-2'>
           <div className='flex flex-col'>
-            <span className='font-medium'>{selectedUser.conversation_name}</span>
+            <span className='font-medium'>{displayName}</span>
           </div>
         </div>
 
