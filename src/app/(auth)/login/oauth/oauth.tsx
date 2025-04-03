@@ -24,8 +24,8 @@ export default function Oauth() {
   const setRole = useAppStore((state) => state.setRole)
 
   const searchParams = useSearchParams()
-  const access_token = searchParams.get('access_token')
-  const refresh_token = searchParams.get('refresh_token')
+  const access_token = searchParams?.get('access_token')
+  const refresh_token = searchParams?.get('refresh_token')
   useEffect(() => {
     if (access_token && refresh_token) {
       if (count.current === 0) {
