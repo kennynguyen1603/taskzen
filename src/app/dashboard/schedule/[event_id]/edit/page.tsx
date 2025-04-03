@@ -76,7 +76,7 @@ const PRIORITY_LEVELS = ['Low', 'Medium', 'High', 'Urgent', 'No_Priority']
 export default function EditEvent() {
   const router = useRouter()
   const params = useParams()
-  const eventId = params.event_id as string
+  const eventId = params?.event_id as string
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [newReminder, setNewReminder] = useState<{ time: string; type: 'Email' | 'Notification' }>({
     time: '',

@@ -160,3 +160,26 @@ export const generateSocketInstace = (access_token: string) => {
     transports: ['websocket', 'polling']
   });
 }
+
+export const getUserInitials = (name: string): string => {
+  if (!name) return ''
+
+  const parts = name.trim().split(/\s+/)
+
+  if (parts.length === 0) return ''
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+export function clearChatStorage() {
+  localStorage.removeItem('chat-storage');
+
+  // Clear any chat-related caches with a pattern match
+  const localStorageKeys = Object.keys(localStorage);
+  localStorageKeys.forEach(key => {
+    if (key.startsWith('chat-') || key.includes('message')) {
+      localStorage.removeItem(key);
+    }
+  });
+}

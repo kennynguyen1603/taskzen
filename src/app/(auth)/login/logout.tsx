@@ -1,6 +1,6 @@
 'use client'
 
-import { getAccessTokenFromLocalStorage, getRefreshTokenFromLocalStorage } from '@/lib/utils'
+import { getAccessTokenFromLocalStorage, getRefreshTokenFromLocalStorage, clearChatStorage } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useLogoutMutation } from '@/queries/useAuth'
 import { useSearchParams } from 'next/navigation'
@@ -14,8 +14,8 @@ function LogoutComponent() {
   const disconnectSocket = useAppStore((state) => state.disconnectSocket)
   const setRole = useAppStore((state) => state.setRole)
   const searchParams = useSearchParams()
-  const refreshTokenFromUrl = searchParams.get('refresh_token')
-  const accessTokenFromUrl = searchParams.get('access_token')
+  const refreshTokenFromUrl = searchParams?.get('refresh_token')
+  const accessTokenFromUrl = searchParams?.get('access_token')
   const ref = useRef<any>(null)
   const clearProjectStorage = useProjectStore((state) => state.clearProjectStorage)
   useEffect(() => {
@@ -29,6 +29,9 @@ function LogoutComponent() {
         setTimeout(() => {
           ref.current = null
         }, 1000)
+
+        clearChatStorage()
+
         setRole()
         disconnectSocket()
         clearProjectStorage()
