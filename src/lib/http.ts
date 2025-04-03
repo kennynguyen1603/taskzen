@@ -5,6 +5,7 @@ import {
   removeTokensFromLocalStorage,
   setAccessTokenToLocalStorage,
   setRefreshTokenToLocalStorage,
+  clearChatStorage,
 } from '@/lib/utils';
 import { LoginResType } from '@/schema-validations/auth.schema';
 import { ErrorPayload } from '@/types/error.type';
@@ -18,6 +19,8 @@ type CustomOptions = Omit<RequestInit, 'method'> & {
 // Định nghĩa các hằng số lỗi
 const ENTITY_ERROR_STATUS = 422;
 const AUTHENTICATION_ERROR_STATUS = 401;
+const BAD_REQUEST_STATUS = 400;
+const CONFLICT_STATUS = 409;
 
 // Định nghĩa kiểu dữ liệu cho lỗi thực thể
 type EntityErrorPayload = {
@@ -162,6 +165,19 @@ const request = async <Response>(
           redirect(`/login?accessToken=${access_token}`);
         }
       }
+    } else if (res.status === BAD_REQUEST_STATUS) {
+      // Special handling for email validation errors during search operations
+      if (url.includes('/user/search') && data.payload && typeof data.payload === 'object' && 'message' in data.payload) {
+        // For user search, we just pass the error message up the chain for UI to display
+        throw new HttpError(data);
+      } else {
+        // For other bad requests
+        throw new HttpError(data);
+      }
+    } else if (res.status === CONFLICT_STATUS) {
+      // For conflict errors (like existing conversations), throw the error
+      // to be handled by the specific API functions
+      throw new HttpError(data);
     } else {
       throw new HttpError(data);
     }
@@ -182,7 +198,10 @@ const request = async <Response>(
       setRefreshTokenToLocalStorage(refresh_token);
     } else if ('api/auth/logout' === normalizeUrl) {
       removeTokensFromLocalStorage();
+      Cookies.remove('access_token');
+      Cookies.remove('refresh_token');
       localStorage.removeItem('project-storage');
+      clearChatStorage();
     }
   }
 

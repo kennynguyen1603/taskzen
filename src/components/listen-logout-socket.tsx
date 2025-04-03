@@ -1,4 +1,4 @@
-import { handleErrorApi } from '@/lib/utils'
+import { handleErrorApi, clearChatStorage } from '@/lib/utils'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAppStore } from '@/provider/app-provider'
 import { useLogoutMutation } from '@/queries/useAuth'
@@ -19,6 +19,9 @@ export default function ListenLogoutSocket() {
       if (isPending) return
       try {
         await mutateAsync()
+
+        clearChatStorage()
+
         setRole()
         disconnectSocket()
         router.push('/')
