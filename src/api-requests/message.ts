@@ -28,7 +28,7 @@ const messageApiRequest = {
 
       try {
         const response = await http.get<any>(url);
-        
+
         // Validate and extract proper pagination from backend response
         if (response?.payload?.data) {
           // Structure the response properly with consistent naming
@@ -55,7 +55,7 @@ const messageApiRequest = {
 
           return structuredResponse;
         }
-        
+
         // If response structure is not as expected, return a structured response anyway
         const fallbackResponse = {
           status: response?.status || 200,
@@ -69,10 +69,10 @@ const messageApiRequest = {
             }
           }
         };
-        
+
         // Cache the fallback response for 30 seconds
         messageCache.set(cacheKey, fallbackResponse);
-        
+
         // Set timeout to clear cache entry
         setTimeout(() => {
           messageCache.delete(cacheKey);
@@ -109,7 +109,7 @@ const messageApiRequest = {
       Array.from(messageCache.keys())
         .filter(key => key.startsWith(`check-new:${conversationId}`))
         .forEach(key => messageCache.delete(key));
-      
+
       // Call the API with the correct route structure
       if (messageId) {
         return await http.post<any>(`/conversations/${conversationId}/messages/${messageId}/mark-as-read`, {});
