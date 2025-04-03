@@ -46,6 +46,7 @@ interface Actions {
   setSelectedConversationId: (id: string | null) => void
   reset: () => void
   clearMessages: () => void
+  resetMessagesFetched: () => void
 }
 
 const initialState: State = {
@@ -102,7 +103,8 @@ const useChatStore = create<State & Actions>()(
 
       setSelectedConversation: (conversation) => set({
         selectedConversation: conversation,
-        selectedConversationId: conversation?._id || null
+        selectedConversationId: conversation?._id || null,
+        messagesFetched: false
       }),
 
       setIsLoading: (isLoading) => set({ isLoading }),
@@ -140,6 +142,10 @@ const useChatStore = create<State & Actions>()(
           nextCursor: null,
           loadMore: false
         }
+      }),
+
+      resetMessagesFetched: () => set({
+        messagesFetched: false
       }),
     }),
     {
