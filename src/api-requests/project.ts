@@ -69,7 +69,7 @@ const projectApiRequest = {
         http.get<TaskOfProjectResType>(`/projects/${projectId}/tasks?limit=1000`),
 
     sGetAllParticipantsInUserProjects: () => {
-        return http.get<{metadata: any}>(`/projects/participants`)
+        return http.get<{ metadata: any }>(`/projects/participants`)
     }
 }
 export default projectApiRequest
