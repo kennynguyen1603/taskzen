@@ -6,9 +6,9 @@ import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ConversationType, LastMessageType } from '@/schema-validations/conversation.schema'
-import { useContext, useState, useEffect, useRef, useMemo } from 'react'
+import { useContext, useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogTrigger } from '@/components/ui/dialog'
-import { CreateGroupDialog, NewMessageDialog } from '@/containers/message/chat-dialogs'
+import { CreateGroupDialog, NewMessageDialog } from '@/containers/messages/chat-dialogs'
 import { useRouter } from 'next/navigation'
 import useChatStore from '@/hooks/use-chat-store'
 import { formatDistanceToNow } from 'date-fns'
@@ -16,10 +16,10 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { UserContext } from '@/contexts/profile-context'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
-import search from '@/api-requests/search'
 import { Loader2 } from 'lucide-react'
 import conversationApiRequest from '@/api-requests/conversation'
 import { toast } from '@/hooks/use-toast'
+import useEmailSearch, { SearchUser } from '@/hooks/use-email-search'
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -49,40 +49,6 @@ const getOtherUserName = (conversationName: Record<string, string>, currentName:
   return otherUser ? otherUser[1] : ''
 }
 
-// Add interface for search history item
-interface SearchHistoryItem {
-  _id: string
-  email: string
-  username: string
-  avatar_url?: string
-  timestamp?: string
-}
-
-// Add validation function
-const validateEmail = (email: string): { isValid: boolean; message: string | null } => {
-  if (!email || email.length < 3) {
-    return { isValid: false, message: 'Vui lòng nhập ít nhất 3 ký tự để tìm kiếm.' }
-  }
-
-  // Basic email format validation
-  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-  if (!emailPattern.test(email.trim())) {
-    // Only show validation error if there's an @ character
-    if (email.includes('@')) {
-      return { isValid: false, message: 'Vui lòng nhập đúng định dạng email.' }
-    }
-    return { isValid: false, message: null }
-  }
-
-  // Prevent searching for common email domains without specific query
-  const commonDomains = ['@gmail.com', '@yahoo.com', '@hotmail.com', '@outlook.com']
-  if (commonDomains.some((domain) => email.trim().toLowerCase() === domain)) {
-    return { isValid: false, message: 'Vui lòng nhập thông tin cụ thể hơn.' }
-  }
-
-  return { isValid: true, message: null }
-}
-
 export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: SidebarProps) {
   const { user } = useContext(UserContext) || {}
   const router = useRouter()
@@ -90,6 +56,16 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
 
   // Track animation state
   const [isTransitioning, setIsTransitioning] = useState(false)
+
+  // Thay thế các state tìm kiếm bằng useEmailSearch hook
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [searchHistory, setSearchHistory] = useState<SearchUser[]>([])
+  const [isSearchingUsers, setIsSearchingUsers] = useState(true) // Add flag to track if searching users or conversations
+
+  // Sử dụng hook useEmailSearch
+  const { searchQuery, setSearchQuery, searchResults, isSearching, error, isValidatingEmail } = useEmailSearch({
+    debounceTime: 2000
+  })
 
   // Add effect to handle transition state
   useEffect(() => {
@@ -101,20 +77,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
     return () => clearTimeout(timer)
   }, [isCollapsed])
 
-  // Add new state for search functionality
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const [searchResults, setSearchResults] = useState<SearchHistoryItem[]>([])
-  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [lastSearchedQuery, setLastSearchedQuery] = useState('')
-  const [isValidatingEmail, setIsValidatingEmail] = useState(false)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const validationTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const [isSearchingUsers, setIsSearchingUsers] = useState(true) // Add flag to track if searching users or conversations
-
-  // Filter chats based on search query
+  // Cập nhật filteredChats để sử dụng searchQuery từ hook
   const filteredChats = useMemo(() => {
     if (!searchQuery.trim() || isSearchingUsers) return chats
 
@@ -139,153 +102,11 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
     })
   }, [chats, searchQuery, user?.username, isSearchingUsers])
 
-  // Fetch search history on component mount
-  useEffect(() => {
-    // This is where you would fetch the search history from your backend
-    // For now, we'll use mock data
-    const mockSearchHistory: SearchHistoryItem[] = [
-      // You should replace this with actual API call to get search history
-      // This is just for demonstration
-    ]
-    setSearchHistory(mockSearchHistory)
-  }, [])
-
-  // Handle search logic
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      return
-    }
-
-    // If not searching users, we're just filtering conversations locally
-    if (!isSearchingUsers) {
-      return
-    }
-
-    // Prevent duplicate API calls for same query
-    if (searchQuery.trim() === lastSearchedQuery) {
-      return
-    }
-
-    // Validate email before making API call
-    const { isValid, message } = validateEmail(searchQuery.trim())
-    if (!isValid) {
-      if (message) {
-        setError(message)
-      }
-      return
-    }
-
-    setIsSearching(true)
-    setError(null)
-    try {
-      const response = await search.searchUsersByEmail(searchQuery)
-      if (response.payload?.metadata?.users) {
-        setSearchResults(response.payload.metadata.users)
-      } else {
-        setSearchResults([])
-      }
-      setLastSearchedQuery(searchQuery.trim())
-    } catch (error: any) {
-      console.error('Error searching users:', error)
-      if (error.message) {
-        setError(error.message)
-      } else {
-        setError('Không thể tìm kiếm người dùng. Vui lòng thử lại sau.')
-      }
-    } finally {
-      setIsSearching(false)
-      setIsValidatingEmail(false)
-    }
-  }
-
   // Toggle between searching users and conversations
   const toggleSearchMode = () => {
     setIsSearchingUsers(!isSearchingUsers)
     setSearchQuery('')
-    setSearchResults([])
-    setError(null)
   }
-
-  // Real-time validation effect
-  useEffect(() => {
-    // Skip validation if not searching users
-    if (!isSearchingUsers) return
-
-    // Clear any existing validation timer
-    if (validationTimerRef.current) {
-      clearTimeout(validationTimerRef.current)
-    }
-
-    // Only validate if there's text to validate
-    if (searchQuery.trim()) {
-      setIsValidatingEmail(true)
-
-      // Wait a short time before showing validation results
-      validationTimerRef.current = setTimeout(() => {
-        const { isValid, message } = validateEmail(searchQuery.trim())
-        if (!isValid && message) {
-          setError(message)
-        } else {
-          setError(null)
-        }
-        setIsValidatingEmail(false)
-      }, 300)
-    } else {
-      setError(null)
-      setIsValidatingEmail(false)
-    }
-
-    return () => {
-      if (validationTimerRef.current) {
-        clearTimeout(validationTimerRef.current)
-      }
-    }
-  }, [searchQuery, isSearchingUsers])
-
-  // Debounce search input
-  useEffect(() => {
-    // Clear any existing timer when input changes
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
-    // Don't search if query is empty
-    if (!searchQuery.trim()) {
-      return
-    }
-
-    // If searching conversations, no need for API call
-    if (!isSearchingUsers) {
-      return
-    }
-
-    // Validate email before setting up search timer
-    const { isValid } = validateEmail(searchQuery.trim())
-    if (!isValid) {
-      return
-    }
-
-    // Only search if query is different from last searched query by at least 1 character
-    if (
-      Math.abs(searchQuery.trim().length - lastSearchedQuery.length) < 2 &&
-      lastSearchedQuery.includes(searchQuery.trim())
-    ) {
-      return
-    }
-
-    // Set debounce timer with a longer delay (2 seconds)
-    debounceTimerRef.current = setTimeout(() => {
-      handleSearch()
-    }, 2000)
-
-    // Clean up timer on unmount
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [searchQuery, lastSearchedQuery, isSearchingUsers])
 
   // Handle removing item from search history
   const removeFromSearchHistory = (userId: string) => {
@@ -295,7 +116,7 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
   }
 
   // Handle selecting a user from search results
-  const handleSelectUser = async (selectedUser: SearchHistoryItem) => {
+  const handleSelectUser = async (selectedUser: SearchUser) => {
     if (!user?._id) {
       toast({
         title: 'Lỗi xác thực',
@@ -341,7 +162,6 @@ export function Sidebar({ chats, isCollapsed, isMobile, selectedUserId }: Sideba
       // Reset search
       setSearchQuery('')
       setIsSearchFocused(false)
-      setSearchResults([])
 
       // Add to search history (you would call your API here)
       // This is just for UI demonstration
