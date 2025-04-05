@@ -1,6 +1,6 @@
 'use client'
 
-import { Chat } from '@/containers/message/chat'
+import { Chat } from '@/containers/messages/chat'
 // import { useEffect, useState } from 'react'
 // import { useRouter } from 'next/navigation'
 
