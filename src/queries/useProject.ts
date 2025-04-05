@@ -23,14 +23,18 @@ export const useCreateProjectMutation = () => {
       toast({
         title: 'Project created successfully'
       })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
       queryClient.invalidateQueries({ queryKey: ['allParticipantsInUserProjects'] })
     },
     onError: (error: any) => {
-      toast({
-        title: 'Failed to create project',
-        description: error.response?.data?.message || 'An error occurred',
-        variant: 'destructive'
-      })
+      if (!error.response?.data?.errors) {
+        toast({
+          title: 'Failed to create project',
+          description: error.response?.data?.message || 'An error occurred',
+          variant: 'destructive'
+        })
+      }
+      throw error;
     }
   })
 }
