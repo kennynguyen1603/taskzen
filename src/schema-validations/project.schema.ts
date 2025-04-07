@@ -99,7 +99,7 @@ export type UpdateProjectBodyType = z.TypeOf<typeof updatedProjectSchema>
 const ProjectActivitySchema = z.object({
     _id: z.string(),
     project_id: z.string(),
-    action: z.enum(["CREATE", "UPDATE", "DELETE", "ADD", "REMOVE"]), // Enum for action types
+    action: z.enum(["CREATE", "UPDATE", "DELETE", "ADD", "REMOVE"]),
     modifiedBy: UserSchema,
     changes: z.record(
         z.string(),
@@ -115,9 +115,17 @@ const ProjectActivitySchema = z.object({
 
 const ProjectActivityResponseSchema = z.object({
     message: z.string(),
+    status: z.number(),
     metadata: z.object({
-        payload: z.array(ProjectActivitySchema), // ✅ Đúng với API trả về
-        total: z.number()
+        activities: z.array(ProjectActivitySchema),
+        pagination: z.object({
+            currentPage: z.number(),
+            totalPages: z.number(),
+            hasNextPage: z.boolean(),
+            hasPrevPage: z.boolean(),
+            total: z.number(),
+            limit: z.number(),
+        })
     })
 }).strict()
 
