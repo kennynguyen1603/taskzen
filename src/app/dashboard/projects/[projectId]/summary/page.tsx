@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar, Flag, Search, Filter, ChevronDown, ChevronRight, MoreHorizontal, User, Clock } from 'lucide-react'
-import { useProjectStore } from '@/hooks/use-project-store'
 import { useGetAllTasksOfProject, useGetSubTasksOfTask, useUpdateTaskMutation } from '@/queries/useTask'
 import { useParams } from 'next/navigation'
 import { Task } from '@/types/task'
@@ -24,9 +23,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import React from 'react'
+import { TaskAssigneeSelector } from '@/components/tasks/task-assignee-selector'
 
 export default function SummaryView() {
-  const { projectId } = useParams()
+  const { projectId } = useParams() as { projectId: string }
   const { data: tasksResponse, isLoading } = useGetAllTasksOfProject(projectId as string)
   const [expandedTasks, setExpandedTasks] = useState<string[]>([])
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
@@ -58,8 +58,6 @@ export default function SummaryView() {
     return []
   }, [tasksResponse])
 
-  console.log('Extracted tasks:', tasks)
-
   const { data: subtasksResponse } = useGetSubTasksOfTask(projectId as string, selectedTaskId as string)
 
   // Effect to update subtasks when new data is available
@@ -70,6 +68,7 @@ export default function SummaryView() {
 
       // Kiểm tra cấu trúc dữ liệu và trích xuất subtasks
       if (subtasksResponse?.payload?.metadata) {
+        console.log('subtasksResponse.payload.metadata', subtasksResponse.payload.metadata)
         if (Array.isArray(subtasksResponse.payload.metadata)) {
           subtasks = subtasksResponse.payload.metadata
         } else if (subtasksResponse.payload.metadata.payload) {
@@ -224,7 +223,7 @@ export default function SummaryView() {
   }
 
   return (
-    <div className='container py-6 px-4'>
+    <div className='p-4 md:p-6 space-y-6 w-full'>
       <div className='flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6'>
         <div>
           <h2 className='text-3xl font-bold'>Project Summary</h2>
@@ -235,11 +234,10 @@ export default function SummaryView() {
           <Button variant='outline' size='sm' onClick={() => {}}>
             Export
           </Button>
-          <Button size='sm'>New Task</Button>
         </div>
       </div>
 
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-6'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6'>
         <Card>
           <CardHeader className='pb-2'>
             <CardTitle className='text-sm font-medium'>Total Tasks</CardTitle>
@@ -348,7 +346,7 @@ export default function SummaryView() {
           <Tabs defaultValue='list' className='w-full'>
             <TabsList className='mb-4'>
               <TabsTrigger value='list'>List View</TabsTrigger>
-              <TabsTrigger value='board'>Board View</TabsTrigger>
+              {/* <TabsTrigger value='board'>Board View</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value='list' className='w-full'>
@@ -483,11 +481,15 @@ export default function SummaryView() {
                               )}
                             </TableCell>
                             <TableCell>
-                              {typeof task.assignee === 'string'
-                                ? task.assignee
-                                : task.assignee
-                                ? 'Assigned'
-                                : 'Unassigned'}
+                              <TaskAssigneeSelector
+                                projectId={projectId}
+                                taskId={task._id}
+                                currentAssigneeId={
+                                  typeof task.assignee === 'string' ? task.assignee : task.assignee?._id
+                                }
+                                variant='minimal'
+                                size='sm'
+                              />
                             </TableCell>
                             <TableCell>
                               <DropdownMenu>
@@ -563,7 +565,7 @@ export default function SummaryView() {
               </div>
             </TabsContent>
 
-            <TabsContent value='board'>
+            {/* <TabsContent value='board'>
               <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4'>
                 {['To Do', 'In Progress', 'Review', 'Completed'].map((status) => (
                   <div key={status} className='border rounded-lg p-4'>
@@ -607,7 +609,7 @@ export default function SummaryView() {
                   </div>
                 ))}
               </div>
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </CardContent>
       </Card>
