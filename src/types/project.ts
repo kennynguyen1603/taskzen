@@ -3,11 +3,6 @@ export interface User {
     username: string;
     email: string;
     avatar_url: string | "";
-    // role: 'leader' | 'staff';
-    // status: 'online' | 'offline';
-    // date_of_birth: Date;
-    // verify: string;
-    // last_login_time: Date;
 }
 
 export interface Participant {
@@ -45,10 +40,30 @@ export interface ResParticipant {
     avatar_url: string | "";
 }
 
+export interface ProjectStats {
+    totalTasks: number;
+    tasksByStatus: {
+        todo: number;
+        inProgress: number;
+        completed: number;
+        blocked: number;
+        review: number;
+    };
+    tasksByPriority: {
+        urgent: number;
+        high: number;
+        medium: number;
+        low: number;
+        none: number;
+    };
+    completionRate: number;
+}
+
 export interface ResProject {
     _id: string;
     title: string;
     description: string;
+    userRole?: string;
     key: string;
     creator: User;
     participants: ResParticipant[];
@@ -57,6 +72,8 @@ export interface ResProject {
     hasBeenModified: boolean;
     revisionHistory: Revision[];
     leader: ResParticipant;
+    projectStats?: ProjectStats;
+    attachments?: any[];
 }
 
 export interface NewProject {
@@ -71,3 +88,7 @@ export interface NewProject {
 export interface Project extends Omit<ResProject, 'participants'> {
     participants: ResParticipant[];
 }
+
+
+
+

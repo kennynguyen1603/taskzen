@@ -7,9 +7,10 @@ import { TaskCard } from '@/containers/dashboard-page/task-card'
 
 interface SortableTaskProps {
   task: Task
+  compact?: boolean
 }
 
-export function SortableTask({ task }: SortableTaskProps) {
+export function SortableTask({ task, compact = false }: SortableTaskProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task._id })
 
   const style = {
@@ -21,7 +22,7 @@ export function SortableTask({ task }: SortableTaskProps) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskCard task={task} isDragging={isDragging} />
+      <TaskCard task={task} isDragging={isDragging} compact={compact} />
     </div>
   )
 }

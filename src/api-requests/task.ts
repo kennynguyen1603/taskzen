@@ -10,7 +10,6 @@ const taskApiRequest = {
         http.patch<TaskResType>(`/projects/${projectId}/tasks/${taskId}`, body),
 
     sCreateTask: (projectId: string, body: NewTask) => {
-        console.log('body', body)
         return http.post<TaskResType>(`/projects/${projectId}/tasks`, body)
     },
 
@@ -21,6 +20,9 @@ const taskApiRequest = {
         http.delete<TaskResType>(`/projects/${projectId}/tasks/${taskId}`),
 
     sGetSubTasksOfTask: (projectId: string, taskId: string) =>
-        http.get<SubTaskResType>(`/projects/${projectId}/tasks/${taskId}/subtasks`)
+        http.get<SubTaskResType>(`/projects/${projectId}/tasks/${taskId}/subtasks`),
+
+    sCreateSubTask: (projectId: string, taskId: string, body: NewTask) =>
+        http.post<TaskResType>(`/projects/${projectId}/tasks/${taskId}/subtasks`, body)
 }
 export default taskApiRequest

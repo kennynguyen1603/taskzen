@@ -5,9 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Search, UserPlus, X } from 'lucide-react'
+import { Search, UserPlus, X, Loader2, AlertCircle } from 'lucide-react'
 import type { ResParticipant, User } from '@/types/project'
 import { useProjectStore } from '@/hooks/use-project-store'
+import { motion, AnimatePresence } from 'framer-motion'
+import EmailSearch from '@/components/ui/email-search'
+import { SearchUser } from '@/hooks/use-email-search'
+import { useToast } from '@/components/ui/use-toast'
 
 interface ManageTeamDialogProps {
   isOpen: boolean
@@ -44,39 +48,102 @@ export function ManageTeamDialog({
 }: ManageTeamDialogProps) {
   const [localProject, setLocalProject] = useState(project)
   const selectedProject = useProjectStore((state) => state.selectedProject)
+  const [removingUsers, setRemovingUsers] = useState<Record<string, boolean>>({})
+  const [addingUser, setAddingUser] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     setLocalProject(project)
   }, [project])
 
   const handleRemoveUser = async (participantId: string) => {
-    onRemoveUser(participantId)
-    setLocalProject((prevProject) => ({
-      ...prevProject,
-      participants: prevProject.participants.filter((p) => p.user_id !== participantId)
-    }))
+    setRemovingUsers((prev) => ({ ...prev, [participantId]: true }))
+
+    try {
+      await onRemoveUser(participantId)
+
+      setLocalProject((prevProject) => ({
+        ...prevProject,
+        participants: prevProject.participants.filter((p) => p.user_id !== participantId)
+      }))
+
+      toast({
+        id: `remove-participant-${Date.now()}`,
+        title: 'User removed',
+        description: 'User was successfully removed from the project',
+        variant: 'default'
+      })
+    } catch (error) {
+      toast({
+        id: `remove-participant-error-${Date.now()}`,
+        title: 'Error',
+        description: 'Failed to remove user from the project',
+        variant: 'destructive'
+      })
+    } finally {
+      setRemovingUsers((prev) => ({ ...prev, [participantId]: false }))
+    }
   }
 
-  const handleInviteUser = (user: User) => {
-    onInviteUser(user)
+  const handleInviteUser = async (user: SearchUser) => {
+    // Check if user is already a participant
+    if (localProject.participants.some((p) => p.user_id === user._id)) {
+      toast({
+        id: `already-participant-${Date.now()}`,
+        title: 'Already a member',
+        description: `${user.username} is already a member of this project`,
+        variant: 'default'
+      })
+      return
+    }
 
-    setLocalProject((prevProject) => ({
-      ...prevProject,
-      participants: [
-        ...prevProject.participants,
-        {
-          _id: '',
-          project_id: prevProject._id,
-          user_id: user._id,
-          role: 'staff',
-          status: 'active',
-          joined_at: new Date(),
-          username: user.username,
-          email: user.email,
-          avatar_url: user.avatar_url
-        }
-      ]
-    }))
+    setAddingUser(true)
+
+    try {
+      // Convert SearchUser to User for compatibility
+      const userToInvite: User = {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar_url: user.avatar_url || ''
+      }
+
+      await onInviteUser(userToInvite)
+
+      setLocalProject((prevProject) => ({
+        ...prevProject,
+        participants: [
+          ...prevProject.participants,
+          {
+            _id: '',
+            project_id: prevProject._id,
+            user_id: user._id,
+            role: 'staff',
+            status: 'active',
+            joined_at: new Date(),
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url || ''
+          }
+        ]
+      }))
+
+      toast({
+        id: `add-participant-${Date.now()}`,
+        title: 'User added',
+        description: `${user.username} was successfully added to the project`,
+        variant: 'default'
+      })
+    } catch (error) {
+      toast({
+        id: `add-participant-error-${Date.now()}`,
+        title: 'Error',
+        description: 'Failed to add user to the project',
+        variant: 'destructive'
+      })
+    } finally {
+      setAddingUser(false)
+    }
   }
 
   const isUserLeaderOrCreator =
@@ -87,8 +154,7 @@ export function ManageTeamDialog({
     if (!selectedProject?.participants) return false
 
     return selectedProject.participants.some((participant) => {
-      if (!participant?._id) return false
-      return participant._id === userId
+      return participant.user_id === userId
     })
   }
 
@@ -106,43 +172,65 @@ export function ManageTeamDialog({
         <div className='space-y-6'>
           {/* Current Team Members */}
           <div className='space-y-4'>
-            <Label>Current Team Members</Label>
-            <ScrollArea className='h-[200px] border rounded-md p-4'>
-              {localProject.participants.map((participant) => (
-                <div key={participant._id} className='flex items-center justify-between py-2 border-b last:border-0'>
-                  <div className='flex items-center gap-3'>
-                    <Avatar>
-                      <AvatarImage src={participant.avatar_url} alt={participant.username} />
-                      <AvatarFallback>{participant.username?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className='font-medium'>{participant.username}</p>
-                      <p className='text-sm text-muted-foreground'>{participant.email}</p>
-                    </div>
-                  </div>
-                  <div className='flex items-center gap-2'>
-                    {isUserLeaderOrCreator &&
-                    participant._id !== currentUser._id &&
-                    participant.role !== 'leader' &&
-                    participant.role !== 'creator' ? (
-                      <>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='text-destructive hover:text-destructive'
-                          onClick={() => handleRemoveUser(participant.user_id)}
-                        >
-                          <X className='h-4 w-4' />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className='text-sm text-muted-foreground px-3 py-1 bg-muted rounded-md'>
-                        {participant.role}
-                      </span>
-                    )}
-                  </div>
+            <div className='flex items-center justify-between'>
+              <Label>Current Team Members ({localProject.participants.length})</Label>
+              {error && (
+                <div className='flex items-center text-destructive text-sm'>
+                  <AlertCircle className='h-4 w-4 mr-1' />
+                  <span>{error}</span>
                 </div>
-              ))}
+              )}
+            </div>
+            <ScrollArea className='h-[200px] border rounded-md p-4'>
+              <AnimatePresence>
+                {localProject.participants.map((participant) => (
+                  <motion.div
+                    key={participant._id || participant.user_id}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                    transition={{ duration: 0.2 }}
+                    className='flex items-center justify-between py-2 border-b last:border-0'
+                  >
+                    <div className='flex items-center gap-3'>
+                      <Avatar>
+                        <AvatarImage src={participant.avatar_url} alt={participant.username} />
+                        <AvatarFallback>{participant.username?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className='font-medium'>{participant.username}</p>
+                        <p className='text-sm text-muted-foreground'>{participant.email}</p>
+                      </div>
+                    </div>
+                    <div className='flex items-center gap-2'>
+                      {isUserLeaderOrCreator &&
+                      participant.user_id !== currentUser._id &&
+                      participant.role !== 'leader' &&
+                      participant.user_id !== localProject.creator._id ? (
+                        <>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            className='text-destructive hover:text-destructive hover:bg-destructive/10'
+                            onClick={() => handleRemoveUser(participant.user_id)}
+                            disabled={removingUsers[participant.user_id]}
+                          >
+                            {removingUsers[participant.user_id] ? (
+                              <Loader2 className='h-4 w-4 animate-spin' />
+                            ) : (
+                              <X className='h-4 w-4' />
+                            )}
+                          </Button>
+                        </>
+                      ) : (
+                        <span className='text-sm text-muted-foreground px-3 py-1 bg-muted rounded-md'>
+                          {participant.user_id === localProject.creator._id ? 'creator' : participant.role}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </ScrollArea>
           </div>
 
@@ -150,49 +238,20 @@ export function ManageTeamDialog({
           {isUserLeaderOrCreator && (
             <div className='space-y-4'>
               <Label>Add New Members</Label>
-              <div className='flex gap-2'>
-                <div className='relative flex-1'>
-                  <Search className='absolute left-2 top-2.5 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    placeholder='Search by email...'
-                    value={searchEmail}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    className='pl-8'
-                  />
-                </div>
-                <Button onClick={onSearch} disabled={isLoading}>
-                  <UserPlus className='h-4 w-4 mr-2' />
-                  Add
-                </Button>
+              <div className='flex flex-col gap-2'>
+                <EmailSearch
+                  onSelectUser={handleInviteUser}
+                  buttonLabel='Add to Project'
+                  placeholder='Search user by email...'
+                  className='w-full'
+                  disabled={addingUser}
+                  includeButton={true}
+                  showResults={true}
+                  actionIcon={
+                    addingUser ? <Loader2 className='h-4 w-4 animate-spin' /> : <UserPlus className='h-4 w-4' />
+                  }
+                />
               </div>
-
-              {error && <p className='text-sm text-destructive'>{error}</p>}
-
-              {searchResults.length > 0 && (
-                <ScrollArea className='h-[200px] border rounded-md p-4'>
-                  {searchResults.map((user) => (
-                    <div key={user._id} className='flex items-center justify-between py-2 border-b last:border-0'>
-                      <div className='flex items-center gap-3'>
-                        <Avatar>
-                          <AvatarImage src={user.avatar_url} alt={user.username} />
-                          <AvatarFallback>{user.username[0]}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className='font-medium'>{user.username}</p>
-                          <p className='text-sm text-muted-foreground'>{user.email}</p>
-                        </div>
-                      </div>
-                      <Button
-                        size='sm'
-                        onClick={() => handleInviteUser(user)}
-                        disabled={localProject.participants.some((p) => p.user_id === user._id)}
-                      >
-                        {localProject.participants.some((p) => p.user_id === user._id) ? 'Already Added' : 'Add Member'}
-                      </Button>
-                    </div>
-                  ))}
-                </ScrollArea>
-              )}
             </div>
           )}
         </div>

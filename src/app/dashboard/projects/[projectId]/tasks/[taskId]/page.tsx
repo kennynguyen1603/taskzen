@@ -14,14 +14,16 @@ import {
   Pencil,
   Trash2,
   CheckSquare,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
 import taskApiRequest from '@/api-requests/task'
+import projectApiRequest from '@/api-requests/project'
 import { Progress } from '@/components/ui/progress'
-import { useGetSubTasksOfTask } from '@/queries/useTask'
+import { useGetSubTasksOfTask, useUpdateTaskMutation } from '@/queries/useTask'
 import Link from 'next/link'
 import {
   AlertDialog,
@@ -34,13 +36,16 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { toast } from '@/hooks/use-toast'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { TaskAssigneeSelector } from '@/components/tasks/task-assignee-selector'
+import { CreateSubtaskDialog } from '@/components/tasks/create-subtask-dialog'
+import { useProjectStore } from '@/hooks/use-project-store'
 
 // Define Task type based on the provided schema
 interface User {
   _id: string
-  name?: string
   username?: string
-  avatar?: string
   avatar_url?: string
   email?: string
 }
@@ -188,18 +193,11 @@ const SubtasksList = ({ taskId, projectId }: { taskId: string; projectId: string
     return <div className='py-4 text-center text-sm text-muted-foreground'>Failed to load subtasks</div>
   }
 
-  // Kiểm tra cấu trúc dữ liệu và trích xuất subtasks
+  // Extract subtasks from response
   let subtasks: any[] = []
-
-  if (data?.payload?.metadata?.payload) {
-    subtasks = data.payload.metadata.payload
-  } else if (Array.isArray(data)) {
-    subtasks = data
-  } else if (data?.payload && Array.isArray(data.payload)) {
-    subtasks = data.payload
+  if (data?.payload?.metadata) {
+    subtasks = data.payload.metadata
   }
-
-  console.log('SubtasksList - extracted subtasks:', subtasks)
 
   if (!subtasks || subtasks.length === 0) {
     return <div className='py-4 text-center text-sm text-muted-foreground'>No subtasks found</div>
@@ -214,10 +212,15 @@ const SubtasksList = ({ taskId, projectId }: { taskId: string; projectId: string
           className='flex items-center justify-between p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors'
         >
           <div className='flex items-center gap-2'>
-            <TaskStatusBadge status={subtask.status} />
-            <span className='text-sm font-medium'>{subtask.title}</span>
+            <div className='flex-1'>
+              <p className='font-medium'>{subtask.title}</p>
+              <p className='text-sm text-muted-foreground line-clamp-1'>{subtask.description}</p>
+            </div>
           </div>
-          <ChevronRight className='h-4 w-4 text-muted-foreground' />
+          <div className='flex items-center gap-2'>
+            <Badge variant='outline'>{subtask.status}</Badge>
+            <ChevronRight className='h-4 w-4 text-muted-foreground' />
+          </div>
         </Link>
       ))}
     </div>
@@ -238,6 +241,50 @@ const TaskEditDialog = ({
   onClose: () => void
   onSave: (task: Task) => void
 }) => {
+  const updateTaskMutation = useUpdateTaskMutation()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [title, setTitle] = useState(task.title || '')
+  const [description, setDescription] = useState(task.description || '')
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(
+    typeof task.assignee === 'string' ? task.assignee : task.assignee?._id
+  )
+
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true)
+
+      // Update the task with new values
+      await updateTaskMutation.mutateAsync({
+        projectId,
+        taskId: task._id,
+        body: {
+          title,
+          description,
+          assignee: assigneeId
+        }
+      })
+
+      toast({
+        title: 'Task updated',
+        description: 'The task has been successfully updated',
+        variant: 'default'
+      })
+
+      // Close dialog and refresh data
+      onClose()
+      onSave({ ...task, title, description, assignee: assigneeId || null })
+    } catch (error) {
+      console.error('Error updating task:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to update the task. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
       <Card className='w-full max-w-md shadow-lg'>
@@ -245,14 +292,53 @@ const TaskEditDialog = ({
           <CardTitle className='text-xl'>Edit Task</CardTitle>
           <CardDescription>Make changes to this task</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p>Edit dialog content would go here</p>
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
+            <label htmlFor='title' className='text-sm font-medium'>
+              Title
+            </label>
+            <Input
+              id='title'
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder='Task title'
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className='space-y-2'>
+            <label htmlFor='description' className='text-sm font-medium'>
+              Description
+            </label>
+            <Textarea
+              id='description'
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder='Task description'
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className='space-y-2'>
+            <label htmlFor='assignee' className='text-sm font-medium'>
+              Assignee
+            </label>
+            <TaskAssigneeSelector
+              projectId={projectId}
+              taskId={task._id}
+              currentAssigneeId={assigneeId}
+              onAssigneeChange={(id) => setAssigneeId(id || undefined)}
+              variant='minimal'
+            />
+          </div>
         </CardContent>
         <CardFooter className='flex justify-between pt-4'>
-          <Button variant='outline' onClick={onClose}>
+          <Button variant='outline' onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={() => onSave(task)}>Save Changes</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !title.trim()}>
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          </Button>
         </CardFooter>
       </Card>
     </div>
@@ -260,7 +346,7 @@ const TaskEditDialog = ({
 }
 
 export default function TaskDetailPage() {
-  const params = useParams()
+  const params = useParams() as { projectId: string; taskId: string }
   const router = useRouter()
   const [task, setTask] = useState<Task | null>(null)
   const [loading, setLoading] = useState(true)
@@ -269,13 +355,40 @@ export default function TaskDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const projectId = params.projectId as string
-  const taskId = params.taskId as string
+  const projectId = params.projectId
+  const taskId = params.taskId
 
   console.log('TaskDetailPage - Params:', { projectId, taskId })
 
+  // Get project store functions
+  const setSelectedProject = useProjectStore((state) => state.setSelectedProject)
+  const selectedProject = useProjectStore((state) => state.selectedProject)
+
+  // Fetch project details for the TaskAssigneeSelector
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      // Skip if we already have the project or no projectId
+      if (!projectId || (selectedProject && selectedProject._id === projectId)) {
+        return
+      }
+
+      try {
+        console.log('Fetching project details for assignee selector')
+        const response = await projectApiRequest.sGetProjectById(projectId)
+        if (response && response.payload && response.payload.metadata) {
+          console.log('Project details loaded:', response.payload.metadata)
+          setSelectedProject(response.payload.metadata as any)
+        }
+      } catch (err) {
+        console.error('Error loading project details:', err)
+      }
+    }
+
+    fetchProjectDetails()
+  }, [projectId, selectedProject, setSelectedProject])
+
   // Use React Query to fetch task data
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['task', projectId, taskId],
     queryFn: async () => {
       try {
@@ -298,7 +411,7 @@ export default function TaskDetailPage() {
     if (data) {
       // Transform the data to match the Task interface
       console.log('Setting task data from API response:', data)
-      const taskData = data.metadata || data.payload?.metadata
+      const taskData = data.payload?.metadata
       setTask(taskData as unknown as Task)
       setLoading(false)
     } else if (isError) {
@@ -325,34 +438,32 @@ export default function TaskDetailPage() {
     if (!task || !task.assignee) return null
 
     if (typeof task.assignee === 'string') {
-      return { _id: task.assignee, name: 'Unknown User' }
+      return { _id: task.assignee, name: 'Unknown User', avatar_url: undefined }
     }
 
     // Handle the case where API returns username instead of name
     const assignee = task.assignee as User
     return {
       ...assignee,
-      name: assignee.name || assignee.username || 'Unknown User',
-      avatar: assignee.avatar || assignee.avatar_url
+      name: assignee.username || 'Unknown User'
     }
   }
 
   // Get creator information with additional null checks
   const getCreatorInfo = (task: Task | null) => {
     if (!task || !task.creator) {
-      return { _id: 'unknown', name: 'Unknown User' }
+      return { _id: 'unknown', name: 'Unknown User', avatar_url: undefined }
     }
 
     if (typeof task.creator === 'string') {
-      return { _id: task.creator, name: 'Unknown User' }
+      return { _id: task.creator, name: 'Unknown User', avatar_url: undefined }
     }
 
     // Handle the case where API returns username instead of name
     const creator = task.creator as User
     return {
       ...creator,
-      name: creator.name || creator.username || 'Unknown User',
-      avatar: creator.avatar || creator.avatar_url
+      name: creator.username || 'Unknown User'
     }
   }
 
@@ -383,9 +494,12 @@ export default function TaskDetailPage() {
 
   console.log('Rendering task details:', task)
 
-  const handleTaskUpdate = (updatedTask: Task) => {
-    setTask(updatedTask)
+  const handleTaskUpdate = (updatedTask: Partial<Task>) => {
+    setTask({ ...task, ...updatedTask })
     setShowEditDialog(false)
+
+    // Refresh data
+    refetch()
   }
 
   // Get user information with null checks
@@ -451,6 +565,12 @@ export default function TaskDetailPage() {
     }
   }
 
+  // Add this function to handle subtask creation success
+  const handleSubtaskCreated = () => {
+    // Refresh data to include new subtask
+    refetch()
+  }
+
   return (
     <div className='container mx-auto py-8 space-y-6 max-w-5xl'>
       {/* Back button and title */}
@@ -466,12 +586,15 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Task header */}
-      <div className='flex justify-between items-start'>
+      <div className='flex items-center justify-between'>
         <h1 className='text-3xl font-bold'>{task.title}</h1>
-        <Button onClick={() => setShowEditDialog(true)} className='gap-2'>
-          <Pencil className='h-4 w-4' />
-          Edit Task
-        </Button>
+        <div className='flex gap-2'>
+          <CreateSubtaskDialog projectId={projectId} parentTaskId={taskId} onSuccess={handleSubtaskCreated} />
+          <Button onClick={() => setShowEditDialog(true)} className='gap-2'>
+            <Pencil className='h-4 w-4' />
+            Edit Task
+          </Button>
+        </div>
       </div>
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
@@ -553,7 +676,7 @@ export default function TaskDetailPage() {
                         <div className='flex items-center gap-2 p-2 rounded-md bg-muted/50'>
                           <Avatar className='h-6 w-6'>
                             <AvatarFallback>{getInitial(assignee.name)}</AvatarFallback>
-                            {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                            {assignee.avatar_url && <AvatarImage src={assignee.avatar_url} alt={assignee.name} />}
                           </Avatar>
                           <span className='text-sm'>{assignee.name}</span>
                         </div>
@@ -567,7 +690,7 @@ export default function TaskDetailPage() {
                       <div className='flex items-center gap-2 p-2 rounded-md bg-muted/50'>
                         <Avatar className='h-6 w-6'>
                           <AvatarFallback>{getInitial(creator.name)}</AvatarFallback>
-                          {creator.avatar && <AvatarImage src={creator.avatar} alt={creator.name} />}
+                          {creator.avatar_url && <AvatarImage src={creator.avatar_url} alt={creator.name} />}
                         </Avatar>
                         <span className='text-sm'>{creator.name}</span>
                       </div>
@@ -622,7 +745,16 @@ export default function TaskDetailPage() {
             <CardContent>
               {task.hasChildren ? (
                 <div className='space-y-4'>
-                  <p className='font-medium text-sm'>Subtasks ({task.childCount})</p>
+                  <div className='flex items-center justify-between'>
+                    <p className='font-medium text-sm'>Subtasks ({task.childCount})</p>
+                    <CreateSubtaskDialog
+                      projectId={projectId}
+                      parentTaskId={taskId}
+                      variant='ghost'
+                      size='sm'
+                      onSuccess={handleSubtaskCreated}
+                    />
+                  </div>
                   {/* Only render SubtasksList if we have a valid taskId */}
                   {taskId ? (
                     <SubtasksList taskId={taskId} projectId={projectId} />
@@ -634,8 +766,15 @@ export default function TaskDetailPage() {
                 <div className='flex flex-col items-center justify-center py-6'>
                   <div className='text-muted-foreground text-center'>
                     <p className='mb-2'>No related tasks</p>
-                    <p className='text-sm'>This task has no connections</p>
+                    <p className='text-sm'>Add a subtask to get started</p>
                   </div>
+                  <CreateSubtaskDialog
+                    projectId={projectId}
+                    parentTaskId={taskId}
+                    variant='outline'
+                    className='mt-4'
+                    onSuccess={handleSubtaskCreated}
+                  />
                 </div>
               )}
             </CardContent>

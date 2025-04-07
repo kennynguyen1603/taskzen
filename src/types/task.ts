@@ -30,7 +30,7 @@ export interface Task {
     parentTask?: {
         _id: string;
         title: string;
-        status: "To Do" | "In Progress" | "Completed";
+        status: "To Do" | "In Progress" | "Completed" | "Review" | "Blocked";
         priority: "Low" | "Medium" | "High" | "Urgent" | "No Priority";
     } | null;
     ancestors: string[];
@@ -41,7 +41,7 @@ export interface Task {
     creator: User;
     type: "Task" | "Subtask" | "Bug" | "Epic" | "Story";
     assignee?: User;
-    status: "To Do" | "In Progress" | "Completed";
+    status: "To Do" | "In Progress" | "Completed" | "Review" | "Blocked";
     priority: "Low" | "Medium" | "High" | "Urgent" | "No Priority";
     progress: number;
     dueDate: Date;
@@ -63,6 +63,7 @@ export interface NewTask {
     title: string;
     description?: string;
     type: TaskType;
+    parent_task?: string;
     assignee?: string;
     status?: TaskStatus;
     priority?: TaskPriority;

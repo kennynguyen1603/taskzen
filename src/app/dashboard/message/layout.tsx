@@ -1,4 +1,4 @@
-import { ChatLayout as ChatContainer } from '@/containers/message/chat-layout'
+import { ChatLayout as ChatContainer } from '@/containers/messages/chat-layout'
 import { cookies } from 'next/headers'
 
 // This server component doesn't redirect, it just gets the layout data
