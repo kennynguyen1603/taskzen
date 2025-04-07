@@ -3,7 +3,7 @@
 import type React from 'react'
 
 import { useState, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
-import type { NewProject, User, ResProject, ResParticipant } from '@/types/project'
+import type { User, ResProject, ResParticipant } from '@/types/project'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -49,7 +49,7 @@ import type { UpdateProjectBodyType } from '@/schema-validations/project.schema'
 import { useRouter } from 'nextjs-toploader/app'
 import { ManageTeamDialog } from '@/containers/project/manage-team-dialog'
 import { ProjectsListView } from '@/containers/project/projects-list-view'
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import EmailSearch from '@/components/ui/email-search'
 import { SearchUser } from '@/hooks/use-email-search'
@@ -173,6 +173,8 @@ export default function Projects() {
           email: p.user.email || '',
           avatar_url: p.user.avatar_url || ''
         })),
+        projectStats: project.projectStats || {},
+        attachments: project.attachments || [],
         revisionHistory: project.revisionHistory?.map((revision) => ({
           ...revision,
           changes: new Map(
@@ -489,6 +491,7 @@ export default function Projects() {
 
   const handleProjectClick = (project: ResProject) => {
     // Handle project click, e.g. navigate to project details
+    setSelectedProject(project)
     router.push(`/dashboard/projects/${project._id}`)
   }
 
@@ -1251,7 +1254,7 @@ export default function Projects() {
                   )}
                 </div>
                 <div className='border rounded-md overflow-hidden'>
-                  <ScrollArea className='max-h-[180px]'>
+                  <ScrollArea>
                     {newProject.participants.map((participant, index) => (
                       <motion.div
                         key={participant._id}
@@ -1619,9 +1622,6 @@ function ProjectCard({
 
   const bgColor = generateBgColor(project.title)
   const isModified = project.hasBeenModified
-
-  // For progress indication (can be connected to real data later)
-  const progress = ((project.title.length % 10) + 1) * 10 // Just a visual demo, 10-100%
 
   return (
     <motion.div
