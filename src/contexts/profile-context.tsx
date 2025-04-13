@@ -5,9 +5,11 @@ import { useGetMeMutation } from '@/queries/useAccount'
 import { AccountType } from '@/schema-validations/account.schema'
 import { formatDate } from 'date-fns'
 import React, { createContext, useState, useEffect, ReactNode } from 'react'
+
 interface UserContextProps {
   user: AccountType | null
   setUser: React.Dispatch<React.SetStateAction<AccountType | null>>
+  isLoading: boolean
 }
 
 export const UserContext = createContext<UserContextProps | undefined>(undefined)
@@ -18,13 +20,19 @@ interface UserProviderProps {
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AccountType | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const me = useGetMeMutation()
 
-  const isLoggin = getAccessTokenFromLocalStorage() && getAccessTokenFromLocalStorage()
+  const isLoggin = getAccessTokenFromLocalStorage()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (!isLoggin) {
+          setIsLoading(false)
+          return
+        }
+
         const response = await me.mutateAsync()
         const userData = response.payload.metadata
 
@@ -36,14 +44,13 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Error fetching user:', error)
         setUser(null)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    if (isLoggin) {
-      fetchData()
-    }
-  }, [])
-  // Dependency array rỗng để chỉ gọi API khi component được mount (F5 hoặc load trang)
+    fetchData()
+  }, [isLoggin])
 
-  return <UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>
+  return <UserContext.Provider value={{ user, setUser, isLoading }}>{children}</UserContext.Provider>
 }

@@ -169,7 +169,11 @@ const config: Config = {
 					'50%': {
 						boxShadow: '0 0 0 8px var(--pulse-color)'
 					}
-				}
+				},
+				"fade-in": {
+					"0%": { opacity: "0" },
+					"100%": { opacity: "1" },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -177,7 +181,8 @@ const config: Config = {
 				'infinite-scroll': 'infinite-scroll 50s linear infinite',
 				marquee: 'marquee var(--duration) linear infinite',
 				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
-				pulse: 'pulse var(--duration) ease-out infinite'
+				pulse: 'pulse var(--duration) ease-out infinite',
+				"fade-in": "fade-in 0.5s ease-out forwards"
 			}
 		}
 	},

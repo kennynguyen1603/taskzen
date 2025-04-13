@@ -1,5 +1,7 @@
 'use client'
 
+import type React from 'react'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -25,12 +27,14 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
           href={item.href}
           className={cn(
             buttonVariants({ variant: 'ghost' }),
-            pathname === item.href ? 'bg-muted hover:bg-muted' : 'hover:bg-transparent hover:underline',
-            'justify-start'
+            pathname === item.href
+              ? 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary'
+              : 'hover:bg-muted hover:text-foreground',
+            'justify-start flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200'
           )}
         >
-          {item.title}
           {item.icon}
+          <span>{item.title}</span>
         </Link>
       ))}
     </nav>

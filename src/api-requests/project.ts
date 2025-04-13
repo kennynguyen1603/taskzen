@@ -73,11 +73,9 @@ const projectApiRequest = {
 
     sGetAllParticipantsInUserProjects: () => {
         return http.get<{
+            message: string,
             status: number,
-            payload: {
-                message: string,
-                metadata: any
-            }
+            metadata: object
         }>(`/projects/participants`)
     }
 }
