@@ -9,6 +9,19 @@ import {
   RegisterResType
 } from '@/schema-validations/auth.schema'
 
+interface VerifyEmailResponse {
+  message: string
+  metadata: {
+    access_token: string
+    refresh_token: string
+  }
+}
+
+interface ResendVerificationEmailResponse {
+  message: string
+  metadata: any
+}
+
 const authApiRequest = {
   refreshTokenRequest: null as Promise<{
     status: number
@@ -64,7 +77,15 @@ const authApiRequest = {
   },
 
   setTokenToCookie: (body: { access_token: string; refresh_token: string }) =>
-    http.post('/api/auth/token', body, { baseUrl: '' })
+    http.post('/api/auth/token', body, { baseUrl: '' }),
+
+  verifyEmail: (token: string) => {
+    return http.post<VerifyEmailResponse>("/access/verify-email", { token })
+  },
+
+  resendVerificationEmail: (email: string) => {
+    return http.post<ResendVerificationEmailResponse>("/access/resend-verification-email", { email })
+  }
 }
 
 export default authApiRequest
